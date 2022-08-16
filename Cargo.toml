@@ -1,0 +1,9 @@
+[workspace]
+
+members = [
+    "core",
+    "derive",
+    "user",
+    "sqlite",
+    "test_app"
+]
