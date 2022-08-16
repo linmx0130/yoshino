@@ -60,3 +60,9 @@ pub trait Schema {
     /// Get the parameter list for insert value statement.
     fn insert_value_params(&self) -> Vec<Box<dyn DbData>>;
 }
+
+pub struct DbError(String);
+pub trait DbAdaptor {
+    fn create_table_for_schema<T: Schema>(&mut self) -> Result<(), DbError>;
+    fn insert_record<T: Schema>(&mut self, record: T);
+}

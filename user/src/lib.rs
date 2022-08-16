@@ -25,14 +25,3 @@ impl User {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use crate::{User};
-    use yoshino_core::{Schema};
-    #[test]
-    fn test_user_table() {
-        assert_eq!(User::create_table_stmt(), "CREATE TABLE y_User (id TEXT, user_name TEXT NOT NULL, login_credential TEXT NOT NULL);")
-
-    }
-}

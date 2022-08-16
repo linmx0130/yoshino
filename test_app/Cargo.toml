@@ -1,5 +1,5 @@
 [package]
-name = "yoshino-user"
+name = "test_app"
 version = "0.1.0"
 edition = "2021"
 
@@ -9,6 +9,4 @@ edition = "2021"
 yoshino-core= {path= "../core"}
 yoshino-derive= {path= "../derive"}
 yoshino-sqlite= {path= "../sqlite"}
-bytes = "1"
-sha2 = "0.10"
-base64 = "0.13.0"
+yoshino-user = {path="../user"}
