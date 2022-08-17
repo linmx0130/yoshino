@@ -6,9 +6,10 @@ mod authentication;
 pub use authentication::UserCredentialHashType as UserCredentialHashType;
 use bytes::Bytes;
 use yoshino_core::{TextField, NullableTextField};
+use yoshino_derive::Schema;
 
 /// The user representation for login purpose
-#[derive(::yoshino_derive::Schema)]
+#[derive(Schema)]
 pub struct User {
     id: Option<String>,
     user_name: String,

@@ -1,2 +1,3 @@
 pub mod types;
-pub use types::{IntegerField, TextField, DbData, Schema, NullableTextField, DbAdaptor, DbError};
+pub mod db;
+pub use types::{IntegerField, TextField, Schema, NullableTextField};

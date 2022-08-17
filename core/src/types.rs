@@ -1,4 +1,5 @@
 /// It can be serialized as a database text field
+use crate::db::DbData;
 pub trait TextField: Sized{
     fn from_db_data(data: &str) -> Option<Self>;
     fn to_db_data(&self) -> String;
@@ -45,12 +46,6 @@ pub trait IntegerField: Sized {
     fn to_db_data(&self)-> i64;
 }
 
-/// The mark trait to indicate that this type can be directly obtained from data base.
-pub trait DbData {}
-impl DbData for String {}
-impl DbData for i64 {}
-impl DbData for Option<String> {}
-
 /// Make the type a data schema in the relational database.
 pub trait Schema {
     /// Get the SQL statement to create a table for this data type.
@@ -59,10 +54,4 @@ pub trait Schema {
     fn insert_value_stmt() -> String;
     /// Get the parameter list for insert value statement.
     fn insert_value_params(&self) -> Vec<Box<dyn DbData>>;
-}
-
-pub struct DbError(String);
-pub trait DbAdaptor {
-    fn create_table_for_schema<T: Schema>(&mut self) -> Result<(), DbError>;
-    fn insert_record<T: Schema>(&mut self, record: T);
 }

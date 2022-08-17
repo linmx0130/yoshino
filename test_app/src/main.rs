@@ -1,5 +1,5 @@
 use yoshino_sqlite::{SQLiteAdaptor};
-use yoshino_core::{DbAdaptor};
+use yoshino_core::db::{DbAdaptor};
 use yoshino_user::{User};
 
 fn main() {

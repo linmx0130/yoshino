@@ -1,5 +1,6 @@
 /// SQLite adaptor for Project Yoshino
-use yoshino_core::{Schema, DbAdaptor};
+use yoshino_core::Schema;
+use yoshino_core::db::{DbAdaptor, DbError};
 use libsqlite3_sys::{sqlite3, sqlite3_stmt};
 use std::ptr;
 use std::ffi::{CStr, CString};
@@ -32,7 +33,7 @@ impl Drop for SQLiteAdaptor {
 }
 
 impl DbAdaptor for SQLiteAdaptor {
-    fn create_table_for_schema<T: Schema>(&mut self) -> Result<(), yoshino_core::DbError>{
+    fn create_table_for_schema<T: Schema>(&mut self) -> Result<(), DbError>{
         let create_table_stmt = T::create_table_stmt();
         let stmt_cstring = CString::new(create_table_stmt.as_str()).unwrap();
         let mut stmt : *mut sqlite3_stmt = ptr::null_mut();

@@ -3,7 +3,6 @@ use proc_macro::token_stream::IntoIter;
 use proc_macro::TokenTree;
 use proc_macro::TokenStream;
 use proc_macro::TokenTree::{Group, Ident, Punct}; 
-use yoshino_core::*;
 
 #[proc_macro_derive(Schema)]
 pub fn derive_schema_fn(src: TokenStream) -> TokenStream {
@@ -23,7 +22,7 @@ pub fn derive_schema_fn(src: TokenStream) -> TokenStream {
     fn insert_value_stmt() -> String {{
         {}.to_owned()
     }}
-    fn insert_value_params(&self) -> Vec<Box<dyn yoshino_core::DbData>> {{
+    fn insert_value_params(&self) -> Vec<Box<dyn yoshino_core::db::DbData>> {{
         todo!()
     }}
 }}", get_create_table_stmt_code(&struct_name, &fields),
