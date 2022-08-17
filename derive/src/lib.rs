@@ -23,10 +23,11 @@ pub fn derive_schema_fn(src: TokenStream) -> TokenStream {
         {}.to_owned()
     }}
     fn insert_value_params(&self) -> Vec<Box<dyn yoshino_core::db::DbData>> {{
-        todo!()
+        {}
     }}
 }}", get_create_table_stmt_code(&struct_name, &fields),
-     get_insert_value_stmt_code(&struct_name, &fields));
+     get_insert_value_stmt_code(&struct_name, &fields),
+     get_insert_value_params_code(&fields));
                 } else {
                     panic!("Only StructStruct can be derived as schemas.")
                 }
@@ -148,8 +149,20 @@ fn get_insert_value_stmt_code(struct_name:&str, fields: &Vec<(String, String)>) 
         if i != 0 {
             s = s + ", ";
         }
-        s = s + format!("?{i}").as_ref();
+        s = s + format!("?{}", i+1).as_ref();
     }
     s = s + ");\"";
+    s
+}
+fn get_insert_value_params_code(fields: &Vec<(String, String)>) -> String {
+    let mut s = "vec![".to_string();
+    for i in 0..fields.len() {
+        if i != 0 {
+            s = s + ", ";
+        }
+        let (field_name, _) = fields.get(i).unwrap();
+        s = s + format!("Box::new(self.{}.to_db_data())", field_name).as_ref();
+    }
+    s = s + "]";
     s
 }

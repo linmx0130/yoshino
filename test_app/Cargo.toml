@@ -10,3 +10,4 @@ yoshino-core= {path= "../core"}
 yoshino-derive= {path= "../derive"}
 yoshino-sqlite= {path= "../sqlite"}
 yoshino-user = {path="../user"}
+bytes = "1"

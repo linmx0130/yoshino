@@ -48,6 +48,7 @@ impl NullableTextField for Option<String> {
 }
 
 /// Auto increment row ID field. It will be represented as an integer primary key.
+#[derive(Clone, Copy)]
 pub enum RowID {
     NEW,
     ID(i64)
@@ -56,11 +57,8 @@ impl RowID {
     pub fn from_db_data(data: i64) -> RowID{
         RowID::ID(data)
     }
-    pub fn to_db_data(&self) -> Option<i64> {
-        match self {
-            RowID::NEW => None,
-            RowID::ID(v) => Some(*v)
-        }
+    pub fn to_db_data(&self) -> RowID {
+        self.clone()
     }
     pub fn db_field_type() -> &'static str {"INTEGER PRIMARY KEY"}
 }
