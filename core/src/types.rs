@@ -3,7 +3,20 @@ use crate::db::DbData;
 pub trait TextField: Sized{
     fn from_db_data(data: &str) -> Option<Self>;
     fn to_db_data(&self) -> String;
-    fn db_field_type() -> String {"TEXT NOT NULL".to_owned()}
+    fn db_field_type() -> &'static str {"TEXT NOT NULL"}
+}
+
+pub trait NullableTextField: Sized {
+    fn from_db_data(data: &Option<String>) -> Option<Option<String>>;
+    fn to_db_data(&self) -> Option<String>;
+    fn db_field_type() -> &'static str {"TEXT"}
+}
+
+/// It can be serailized as a 64-bit integer
+pub trait IntegerField: Sized {
+    fn from_db_data(data: i64) -> Option<Self>;
+    fn to_db_data(&self)-> i64;
+    fn db_field_type() -> &'static str {"BIGINT NOT NULL"}
 }
 
 impl TextField for String {
@@ -13,12 +26,6 @@ impl TextField for String {
     fn to_db_data(&self) -> String {
         self.to_owned()
     }
-}
-
-pub trait NullableTextField: Sized {
-    fn from_db_data(data: &Option<String>) -> Option<Option<String>>;
-    fn to_db_data(&self) -> Option<String>;
-    fn db_field_type() -> String {"TEXT".to_owned()}
 }
 
 impl NullableTextField for Option<String> {
@@ -40,10 +47,22 @@ impl NullableTextField for Option<String> {
     }
 }
 
-/// It can be serailized as an integer
-pub trait IntegerField: Sized {
-    fn from_db_data(data: i64) -> Option<Self>;
-    fn to_db_data(&self)-> i64;
+/// Auto increment row ID field. It will be represented as an integer primary key.
+pub enum RowID {
+    NEW,
+    ID(i64)
+}
+impl RowID {
+    pub fn from_db_data(data: i64) -> RowID{
+        RowID::ID(data)
+    }
+    pub fn to_db_data(&self) -> Option<i64> {
+        match self {
+            RowID::NEW => None,
+            RowID::ID(v) => Some(*v)
+        }
+    }
+    pub fn db_field_type() -> &'static str {"INTEGER PRIMARY KEY"}
 }
 
 /// Make the type a data schema in the relational database.

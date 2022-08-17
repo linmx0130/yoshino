@@ -118,7 +118,7 @@ fn get_struct_fields_from_stream(src: TokenStream) -> Vec<(String, String)> {
 }
 
 fn get_create_table_stmt_code(struct_name: &str, fields: &Vec<(String, String)>) -> String {
-    let mut s = format!("format!(\"CREATE TABLE y_{} (", struct_name);
+    let mut s = format!("format!(\"CREATE TABLE IF NOT EXISTS y_{} (", struct_name);
     let mut type_str_buf = String::new();
     for i in 0..fields.len() {
         if i != 0 {
