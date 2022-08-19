@@ -1,6 +1,6 @@
 /// SQLite adaptor for Project Yoshino
 use yoshino_core::Schema;
-use yoshino_core::db::{DbAdaptor, DbError};
+use yoshino_core::db::{DbAdaptor, DbDataType, DbError};
 use libsqlite3_sys::{sqlite3, sqlite3_stmt};
 use std::ptr;
 use std::ffi::CString;
@@ -22,6 +22,46 @@ impl SQLiteAdaptor {
             db_handler
         }
     }
+
+    fn get_create_table_stmt_code(schema_name: &str, fields: &Vec<(String, DbDataType)>) -> String {
+        let mut s = format!("CREATE TABLE IF NOT EXISTS {} (", schema_name);
+        for i in 0..fields.len() {
+            if i != 0 {
+                s = s + ", ";
+            }
+            let (field_name, field_type) = fields.get(i).unwrap();
+            s = s + field_name + " ";
+            s = s + match  field_type {
+                DbDataType::Int => " INTEGER NOT NULL",
+                DbDataType::NullableInt => "INTEGER",
+                DbDataType::Text => "TEXT NOT NULL",
+                DbDataType::NullableText => "TEXT",
+                DbDataType::RowID => "INTEGER PRIMARY KEY"
+            }
+        }
+        s = s + ");";
+        s
+    }
+
+    fn get_insert_value_stmt_code(schema_name: &str, fields: &Vec<(String, DbDataType)>) -> String {
+        let mut s = format!("INSERT INTO {} (", schema_name);
+        for i in 0..fields.len() {
+            if i != 0 {
+                s = s + ", ";
+            }
+            let (field_name, _) = fields.get(i).unwrap();
+            s = s + &field_name;
+        }
+        s = s + ") VALUES (";
+        for i in 0..fields.len() {
+            if i != 0 {
+                s = s + ", ";
+            }
+            s = s + format!("?{}", i+1).as_ref();
+        }
+        s = s + ");";
+        s
+    }
 }
 
 impl Drop for SQLiteAdaptor {
@@ -34,7 +74,9 @@ impl Drop for SQLiteAdaptor {
 
 impl DbAdaptor for SQLiteAdaptor {
     fn create_table_for_schema<T: Schema>(&mut self) -> Result<(), DbError>{
-        let create_table_stmt = T::create_table_stmt();
+        let schema_name = T::get_schema_name();
+        let fields = T::get_fields();
+        let create_table_stmt = SQLiteAdaptor::get_create_table_stmt_code(&schema_name, &fields);
         let stmt_cstring = CString::new(create_table_stmt.as_str()).unwrap();
         let mut stmt : *mut sqlite3_stmt = ptr::null_mut();
         let mut tail = ptr::null();
@@ -53,13 +95,15 @@ impl DbAdaptor for SQLiteAdaptor {
         Ok(())
     }
     fn insert_record<T: Schema>(&mut self, record: T) -> Result<(), DbError>{
-        let insert_record_stmt = T::insert_value_stmt();
+        let schema_name = T::get_schema_name();
+        let fields = T::get_fields();
+        let insert_record_stmt = SQLiteAdaptor::get_insert_value_stmt_code(&schema_name, &fields);
         let stmt_cstring = CString::new(insert_record_stmt.as_str()).unwrap();
         let mut stmt: *mut sqlite3_stmt = ptr::null_mut();
         let mut tail = ptr::null();
-        let params = record.insert_value_params();
+        let params = record.get_values();
         unsafe {
-            libsqlite3_sys::sqlite3_prepare_v2(
+            let r = libsqlite3_sys::sqlite3_prepare_v2(
                 self.db_handler, 
                 stmt_cstring.as_ptr(),
                 insert_record_stmt.len() as c_int,
@@ -76,7 +120,7 @@ impl DbAdaptor for SQLiteAdaptor {
                         let data_value = *data_ptr;
                         libsqlite3_sys::sqlite3_bind_int64(stmt, i, data_value);
                     }
-                    yoshino_core::db::DbDataType::NullableInt => {
+                    yoshino_core::db::DbDataType::NullableInt | yoshino_core::db::DbDataType::RowID => {
                         let data_ptr = db_data_box.db_data_ptr() as *const i64;
                         if data_ptr != ptr::null() {
                             let data_value = *data_ptr;
@@ -94,8 +138,8 @@ impl DbAdaptor for SQLiteAdaptor {
             }
         }
         unsafe{
-            libsqlite3_sys::sqlite3_step(stmt);
-            libsqlite3_sys::sqlite3_finalize(stmt);
+            let r =libsqlite3_sys::sqlite3_step(stmt);
+            let r = libsqlite3_sys::sqlite3_finalize(stmt);
         }
         Ok(())
     }

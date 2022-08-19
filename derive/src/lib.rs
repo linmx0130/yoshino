@@ -16,18 +16,19 @@ pub fn derive_schema_fn(src: TokenStream) -> TokenStream {
                 if g.delimiter() == proc_macro::Delimiter::Brace {
                     let fields = get_struct_fields_from_stream(g.stream());
                     derived_code = format!("impl yoshino_core::Schema for {struct_name} {{
-    fn create_table_stmt() -> String {{
+    fn get_schema_name() -> String {{
+        \"y_{}\".to_owned()
+    }}
+    fn get_fields() -> Vec<(String, yoshino_core::db::DbDataType)> {{
         {}
     }}
-    fn insert_value_stmt() -> String {{
-        {}.to_owned()
-    }}
-    fn insert_value_params(&self) -> Vec<Box<dyn yoshino_core::db::DbData>> {{
+    fn get_values(&self) -> Vec<Box<dyn yoshino_core::db::DbData>> {{
         {}
     }}
-}}", get_create_table_stmt_code(&struct_name, &fields),
-     get_insert_value_stmt_code(&struct_name, &fields),
-     get_insert_value_params_code(&fields));
+}}",
+        struct_name.to_lowercase(),
+        get_fields_vec_code(&fields),
+        get_values_vec_code(&fields));
                 } else {
                     panic!("Only StructStruct can be derived as schemas.")
                 }
@@ -118,43 +119,20 @@ fn get_struct_fields_from_stream(src: TokenStream) -> Vec<(String, String)> {
     fields
 }
 
-fn get_create_table_stmt_code(struct_name: &str, fields: &Vec<(String, String)>) -> String {
-    let mut s = format!("format!(\"CREATE TABLE IF NOT EXISTS y_{} (", struct_name);
-    let mut type_str_buf = String::new();
+fn get_fields_vec_code(fields: &Vec<(String, String)>) -> String {
+    let mut s = "vec![".to_owned();
     for i in 0..fields.len() {
         if i != 0 {
             s = s + ", ";
-            type_str_buf = type_str_buf + ", ";
         }
         let (field_name, field_type) = fields.get(i).unwrap();
-        s = s + &field_name;
-        type_str_buf = type_str_buf + format!("{}::db_field_type()", field_type).as_ref();
-        s = s + " {}";
+        s = s + format!("(\"{}\".to_string(), {}::db_field_type())", field_name, field_type).as_ref(); 
     }
-    s = s + ");\", " + type_str_buf.as_ref() + ")";
-    s
+    s = s + "]";
+    return s
 }
 
-fn get_insert_value_stmt_code(struct_name:&str, fields: &Vec<(String, String)>) -> String {
-    let mut s = format!("\"INSERT INTO y_{struct_name} (");
-    for i in 0..fields.len() {
-        if i != 0 {
-            s = s + ", ";
-        }
-        let (field_name, _) = fields.get(i).unwrap();
-        s = s + &field_name;
-    }
-    s = s + ") VALUES(";
-    for i in 0..fields.len() {
-        if i != 0 {
-            s = s + ", ";
-        }
-        s = s + format!("?{}", i+1).as_ref();
-    }
-    s = s + ");\"";
-    s
-}
-fn get_insert_value_params_code(fields: &Vec<(String, String)>) -> String {
+fn get_values_vec_code(fields: &Vec<(String, String)>) -> String {
     let mut s = "vec![".to_string();
     for i in 0..fields.len() {
         if i != 0 {

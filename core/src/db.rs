@@ -14,7 +14,8 @@ pub enum DbDataType {
     NullableText,
     NullableInt,
     Text,
-    Int 
+    Int,
+    RowID 
 }
 /// The mark trait to indicate that this type can be directly obtained from data base.
 pub trait DbData {
@@ -39,6 +40,7 @@ impl DbData for String {
         self.len()
     }
 }
+
 impl DbData for i64 {
     fn db_data_type(&self) -> DbDataType {
         DbDataType::Int
@@ -75,16 +77,14 @@ impl DbData for Option<String> {
 
 impl DbData for crate::types::RowID {
     fn db_data_type(&self) -> DbDataType {
-        DbDataType::NullableInt
+        DbDataType::RowID
     }
-
     fn db_data_ptr(&self) -> *const core::ffi::c_void {
         match self {
             RowID::NEW => ptr::null(),
             RowID::ID(v) => *v as *const core::ffi::c_void
         }
     }
-
     fn db_data_len(&self) -> usize {
         8
     }
