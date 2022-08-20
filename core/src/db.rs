@@ -4,7 +4,7 @@ use crate::{RowID, Schema};
 
 // Database related core stuff
 #[derive(Debug, Clone)]
-pub struct DbError(String);
+pub struct DbError(pub String);
 
 pub struct DbQueryResult<T:Schema> {
     pub data_iter: Box<dyn Iterator<Item=T>>

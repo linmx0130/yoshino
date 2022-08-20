@@ -5,7 +5,7 @@ use bytes::Bytes;
 
 
 fn main() {
-    let mut adaptor = SQLiteAdaptor::open("db1");
+    let mut adaptor = SQLiteAdaptor::open("db1").unwrap();
     adaptor.create_table_for_schema::<User>().unwrap();
     let new_user = User::new(
         "admin".to_string(), 

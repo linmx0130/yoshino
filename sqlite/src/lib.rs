@@ -12,16 +12,32 @@ pub struct SQLiteAdaptor {
     db_handler: *mut sqlite3
 }
 
+macro_rules! db_try {
+    ($e: expr) => {{
+        {
+            let return_value = $e;
+            match return_value {
+                libsqlite3_sys::SQLITE_OK | libsqlite3_sys::SQLITE_DONE => {
+                    // success, ignore it
+                }
+                error_code => {
+                    return Err(DbError(format!("SQLite3 error {}", error_code)))
+                }
+            }
+        }
+    }};
+}
+
 impl SQLiteAdaptor {
-    pub fn open(filename: &str) -> SQLiteAdaptor {
+    pub fn open(filename: &str) -> Result<SQLiteAdaptor, DbError> {
         let filename_cstring = CString::new(filename).unwrap();
         let mut db_handler: *mut sqlite3 = ptr::null_mut();
         unsafe {
-            libsqlite3_sys::sqlite3_open(filename_cstring.as_ptr(), &mut db_handler);
+            db_try!(libsqlite3_sys::sqlite3_open(filename_cstring.as_ptr(), &mut db_handler));
         }
-        SQLiteAdaptor {
+        Ok(SQLiteAdaptor {
             db_handler
-        }
+        })
     }
 
     fn get_create_table_stmt_code(schema_name: &str, fields: &Vec<(String, DbDataType)>) -> String {
@@ -150,15 +166,15 @@ impl DbAdaptor for SQLiteAdaptor {
         let mut tail = ptr::null();
         unsafe {
             // TODO: check result value and generate errors
-            let r = libsqlite3_sys::sqlite3_prepare_v2(
+            db_try!(libsqlite3_sys::sqlite3_prepare_v2(
                 self.db_handler, 
                 stmt_cstring.as_ptr(),
                 create_table_stmt.len() as c_int,
                 &mut stmt,
                 &mut tail
-            );
-            let r2 = libsqlite3_sys::sqlite3_step(stmt);
-            libsqlite3_sys::sqlite3_finalize(stmt);
+            ));
+            db_try!(libsqlite3_sys::sqlite3_step(stmt));
+            db_try!(libsqlite3_sys::sqlite3_finalize(stmt));
         };
         Ok(())
     }
@@ -172,12 +188,12 @@ impl DbAdaptor for SQLiteAdaptor {
         let mut tail = ptr::null();
         let params = record.get_values();
         unsafe {
-            let r = libsqlite3_sys::sqlite3_prepare_v2(
+            db_try!(libsqlite3_sys::sqlite3_prepare_v2(
                 self.db_handler, 
                 stmt_cstring.as_ptr(),
                 insert_record_stmt.len() as c_int,
                 &mut stmt, 
-            &mut tail);
+            &mut tail));
         }
         for ii in 0..params.len() {
             let db_data_box = params.get(ii).unwrap();
@@ -207,8 +223,8 @@ impl DbAdaptor for SQLiteAdaptor {
             }
         }
         unsafe{
-            let r =libsqlite3_sys::sqlite3_step(stmt);
-            let r = libsqlite3_sys::sqlite3_finalize(stmt);
+            db_try!(libsqlite3_sys::sqlite3_step(stmt));
+            db_try!(libsqlite3_sys::sqlite3_finalize(stmt));
         }
         Ok(())
     }
@@ -222,13 +238,13 @@ impl DbAdaptor for SQLiteAdaptor {
         let mut tail = ptr::null();
         unsafe {
             // TODO: check result value and generate errors
-            let r = libsqlite3_sys::sqlite3_prepare_v2(
+            db_try!(libsqlite3_sys::sqlite3_prepare_v2(
                 self.db_handler, 
                 stmt_cstring.as_ptr(),
                 query_stmt.len() as c_int,
                 &mut stmt,
                 &mut tail
-            );
+            ));
         };
         let iter:Box<SQLiteRowIterator<T>> = Box::new(SQLiteRowIterator{stmt, phantom: PhantomData});
         Ok(DbQueryResult{data_iter: iter})
