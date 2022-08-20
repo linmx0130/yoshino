@@ -62,7 +62,7 @@ impl TextField for UserCredential {
         };
         base64::encode(buf)
     }
-    fn from_boxed_db_data(data: &Box<dyn DbData>) -> UserCredential {
+    fn from_db_data(data: &Box<dyn DbData>) -> UserCredential {
         let data_str = <String as DbData>::from_boxed_db_data(data);
         let mut buf = Bytes::from(base64::decode(data_str).unwrap());
         let magic_number = buf.get_i32();

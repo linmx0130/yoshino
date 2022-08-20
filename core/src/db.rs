@@ -37,7 +37,7 @@ pub trait DbData {
     fn db_data_ptr(&self) -> *const core::ffi::c_void;
     /// data length in bytes
     fn db_data_len(&self) -> usize;
-    /// restore data from a boxed db data object
+    // restore data from a boxed db data object
     fn from_boxed_db_data(src: &Box<dyn DbData>) -> Self where Self: Sized;
 }
 
@@ -72,7 +72,7 @@ impl DbData for i64 {
     }
 
     fn db_data_ptr(&self) -> *const core::ffi::c_void {
-        *self as *const core::ffi::c_void
+        self as *const i64 as *const core::ffi::c_void
     }
 
     fn db_data_len(&self) -> usize {
@@ -82,6 +82,33 @@ impl DbData for i64 {
     fn from_boxed_db_data(src: &Box<dyn DbData>) -> i64 {
         unsafe {
             *(src.db_data_ptr() as *const i64)
+        }
+    }
+}
+
+impl DbData for Option<i64> {
+    fn db_data_type(&self) -> DbDataType {
+        DbDataType::NullableInt
+    }
+
+    fn db_data_ptr(&self) -> *const core::ffi::c_void {
+        match self {
+            None => ptr::null(),
+            Some(v) => (v as *const i64 as *const core::ffi::c_void)
+        }
+    }
+    
+    fn db_data_len(&self) -> usize {
+        8
+    }
+
+    fn from_boxed_db_data(src: &Box<dyn DbData>) -> Option<i64> {
+        if src.db_data_ptr().is_null() {
+            None
+        } else {
+            Some(unsafe {
+                *(src.db_data_ptr() as *const i64)
+            })
         }
     }
 }

@@ -1,8 +1,16 @@
 use yoshino_sqlite::{SQLiteAdaptor};
 use yoshino_core::db::{DbAdaptor};
+use yoshino_core::{TextField, NullableIntegerField};
 use yoshino_user::{User};
 use bytes::Bytes;
+use yoshino_derive::Schema;
 
+
+#[derive(Schema)]
+struct Counter {
+    pub name: String,
+    pub stock: Option<i64>,
+}
 
 fn main() {
     let mut adaptor = SQLiteAdaptor::open("db1").unwrap();
@@ -15,5 +23,13 @@ fn main() {
     let query_result = adaptor.query_all::<User>().unwrap();
     for user in query_result {
         println!("user: {:?}", user);
+    }
+
+    adaptor.create_table_for_schema::<Counter>().unwrap();
+    let p1 = Counter {name:"milk".to_string(), stock: Some(20)};
+    adaptor.insert_record(p1).unwrap();
+    let query_result = adaptor.query_all::<Counter>().unwrap();
+    for p in query_result {
+        println!("Product: {}, stock = {:?}", p.name, p.stock);
     }
 }

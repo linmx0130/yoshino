@@ -1,3 +1,3 @@
 pub mod types;
 pub mod db;
-pub use types::{IntegerField, TextField, Schema, NullableTextField, RowID};
+pub use types::{IntegerField, TextField, Schema, NullableTextField, NullableIntegerField, RowID};

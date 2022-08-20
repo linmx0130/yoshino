@@ -121,7 +121,24 @@ impl<T: Schema> Iterator for SQLiteRowIterator<T> {
                 for i in 0..fields.len() {
                     let (_, field_type) = fields.get(i).unwrap();
                     match field_type {
-                        DbDataType::Int | DbDataType::NullableInt => {
+                        DbDataType::NullableInt => {
+                            let type_code = unsafe {
+                                libsqlite3_sys::sqlite3_column_type(self.stmt, i as i32)
+                            };
+                            let v = match type_code {
+                                libsqlite3_sys::SQLITE_INTEGER => {
+                                    Some(unsafe {
+                                        libsqlite3_sys::sqlite3_column_int64(self.stmt, i as i32)
+                                    })
+                                }
+                                _ => {
+                                    None
+                                }
+                            };
+                            values.push(Box::new(v));
+                            
+                        }
+                        DbDataType::Int => {
                             let v = unsafe { libsqlite3_sys::sqlite3_column_int64(self.stmt, i as i32) as i64};
                             values.push(Box::new(v));               
                         }
@@ -202,6 +219,7 @@ impl DbAdaptor for SQLiteAdaptor {
                 match db_data_box.db_data_type() {
                     yoshino_core::db::DbDataType::Int => {
                         let data_ptr = db_data_box.db_data_ptr() as *const i64;
+                        println!("data_ptr for int = {:?}", data_ptr);
                         let data_value = *data_ptr;
                         libsqlite3_sys::sqlite3_bind_int64(stmt, i, data_value);
                     }

@@ -2,7 +2,7 @@
 use crate::db::{DbData, DbDataType};
 
 pub trait TextField: Sized{
-    fn from_boxed_db_data(data: &Box<dyn DbData>) -> Self;
+    fn from_db_data(data: &Box<dyn DbData>) -> Self;
     fn to_db_data(&self) -> String;
     fn db_field_type() -> DbDataType {
         DbDataType::Text
@@ -10,7 +10,7 @@ pub trait TextField: Sized{
 }
 
 pub trait NullableTextField: Sized {
-    fn from_boxed_db_data(data: &Box< dyn DbData>) -> Self;
+    fn from_db_data(data: &Box< dyn DbData>) -> Self;
     fn to_db_data(&self) -> Option<String>;
     fn db_field_type() -> DbDataType {
         DbDataType::NullableText
@@ -19,15 +19,23 @@ pub trait NullableTextField: Sized {
 
 /// It can be serailized as a 64-bit integer
 pub trait IntegerField: Sized {
-    fn from_boxed_db_data(data: &Box<dyn DbData>) -> Self;
+    fn from_db_data(data: &Box<dyn DbData>) -> Self;
     fn to_db_data(&self)-> i64;
     fn db_field_type() -> DbDataType {
         DbDataType::Int
     }
 }
 
+pub trait NullableIntegerField: Sized {
+    fn from_db_data(data: &Box<dyn DbData>) -> Self;
+    fn to_db_data(&self)-> Option<i64>;
+    fn db_field_type() -> DbDataType {
+        DbDataType::NullableInt
+    }
+}
+
 impl TextField for String {
-    fn from_boxed_db_data(data: &Box<dyn DbData>) -> String {
+    fn from_db_data(data: &Box<dyn DbData>) -> String {
         <String as DbData>::from_boxed_db_data(data)
     }
     fn to_db_data(&self) -> String {
@@ -36,7 +44,7 @@ impl TextField for String {
 }
 
 impl NullableTextField for Option<String> {
-    fn from_boxed_db_data(data: &Box<dyn DbData>) -> Option<String> {
+    fn from_db_data(data: &Box<dyn DbData>) -> Option<String> {
         <Option<String> as DbData>::from_boxed_db_data(data)
     }
     fn to_db_data(&self) -> Option<String> {
@@ -47,6 +55,24 @@ impl NullableTextField for Option<String> {
     }
 }
 
+impl IntegerField for i64 {
+    fn from_db_data(data: &Box<dyn DbData>) -> Self {
+        <i64 as DbData>::from_boxed_db_data(data)
+    }
+    fn to_db_data(&self)-> i64 {
+        *self
+    }
+}
+
+impl NullableIntegerField for Option<i64> {
+    fn from_db_data(data: &Box< dyn DbData>) -> Self {
+        <Option<i64> as DbData>::from_boxed_db_data(data)
+    }
+    fn to_db_data(&self) -> Option<i64> {
+        *self
+    }
+}
+
 /// Auto increment row ID field. It will be represented as an integer primary key.
 #[derive(Clone, Copy, Debug)]
 pub enum RowID {
@@ -54,7 +80,7 @@ pub enum RowID {
     ID(i64)
 }
 impl RowID {
-    pub fn from_boxed_db_data(data: &Box<dyn DbData>) -> RowID{
+    pub fn from_db_data(data: &Box<dyn DbData>) -> RowID{
         <RowID as DbData>::from_boxed_db_data(data)
     }
     pub fn to_db_data(&self) -> RowID {

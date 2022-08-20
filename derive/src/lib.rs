@@ -159,7 +159,7 @@ fn get_create_with_values_code(struct_name: &str, fields: &Vec<(String, String)>
             s = s + ", ";
         }
         let (field_name, field_type) = fields.get(i).unwrap();
-        s = s + format!("{}: {}::from_boxed_db_data(&values[{}])", field_name, field_type, i).as_ref();
+        s = s + format!("{}: {}::from_db_data(&values[{}])", field_name, field_type, i).as_ref();
     }
     s = s + "}";
     s
