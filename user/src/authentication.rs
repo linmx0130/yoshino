@@ -2,16 +2,17 @@
 
 use bytes::{Bytes, BytesMut, BufMut, Buf};
 use sha2::{Sha256, Digest};
-use yoshino_core::TextField;
+use yoshino_core::{TextField, db::DbData};
+
 /// To indicate how the useer credential is hashed
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum UserCredentialHashType {
     /// SHA256 hash with a salt
     Sha256WithSalt(Bytes)
 } 
 
 /// User credential type 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct UserCredential {
     data: Bytes,
     hash_type: UserCredentialHashType
@@ -61,8 +62,9 @@ impl TextField for UserCredential {
         };
         base64::encode(buf)
     }
-    fn from_db_data(data: &str) -> Option<Self> {
-        let mut buf = Bytes::from(base64::decode(data).unwrap());
+    fn from_boxed_db_data(data: &Box<dyn DbData>) -> UserCredential {
+        let data_str = <String as DbData>::from_boxed_db_data(data);
+        let mut buf = Bytes::from(base64::decode(data_str).unwrap());
         let magic_number = buf.get_i32();
         match magic_number {
             0x35A256 => {
@@ -76,10 +78,10 @@ impl TextField for UserCredential {
                 for _i in 0..data_len {
                     data.put_u8(buf.get_u8())
                 }
-                Some(UserCredential {
+                UserCredential {
                     data: Bytes::from(data),
                     hash_type: UserCredentialHashType::Sha256WithSalt(Bytes::from(salt))
-                })
+                }
             }
             _ => {
                 panic!("Unsupported user credential type");

@@ -9,10 +9,10 @@ use yoshino_core::{TextField, RowID};
 use yoshino_derive::Schema;
 
 /// The user representation for login purpose
-#[derive(Schema)]
+#[derive(Schema, Debug)]
 pub struct User {
     id: RowID,
-    user_name: String,
+    pub user_name: String,
     login_credential: authentication::UserCredential,
 }
 

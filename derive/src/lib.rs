@@ -1,4 +1,5 @@
 extern crate proc_macro;
+
 use proc_macro::token_stream::IntoIter;
 use proc_macro::TokenTree;
 use proc_macro::TokenStream;
@@ -25,10 +26,14 @@ pub fn derive_schema_fn(src: TokenStream) -> TokenStream {
     fn get_values(&self) -> Vec<Box<dyn yoshino_core::db::DbData>> {{
         {}
     }}
+    fn create_with_values(values: Vec<Box<dyn yoshino_core::db::DbData>>) -> {struct_name} {{
+        {}
+    }}
 }}",
         struct_name.to_lowercase(),
         get_fields_vec_code(&fields),
-        get_values_vec_code(&fields));
+        get_values_vec_code(&fields),
+        get_create_with_values_code(&struct_name, &fields));
                 } else {
                     panic!("Only StructStruct can be derived as schemas.")
                 }
@@ -69,8 +74,10 @@ fn get_struct_fields_from_stream(src: TokenStream) -> Vec<(String, String)> {
                 // wait for field name
                 match &it {
                     Ident(ident) => {
-                        current_field_name = ident.to_string();
-                        state = 1;
+                        if ident.to_string() != "pub"{
+                            current_field_name = ident.to_string();
+                            state = 1;
+                        }
                     }
                     _ => {
                         //ignore
@@ -142,5 +149,18 @@ fn get_values_vec_code(fields: &Vec<(String, String)>) -> String {
         s = s + format!("Box::new(self.{}.to_db_data())", field_name).as_ref();
     }
     s = s + "]";
+    s
+}
+
+fn get_create_with_values_code(struct_name: &str, fields: &Vec<(String, String)>) -> String {
+    let mut s = struct_name.to_owned() + "{";
+    for i in 0..fields.len() {
+        if i != 0 {
+            s = s + ", ";
+        }
+        let (field_name, field_type) = fields.get(i).unwrap();
+        s = s + format!("{}: {}::from_boxed_db_data(&values[{}])", field_name, field_type, i).as_ref();
+    }
+    s = s + "}";
     s
 }

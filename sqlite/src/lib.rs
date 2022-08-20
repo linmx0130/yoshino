@@ -1,11 +1,12 @@
 /// SQLite adaptor for Project Yoshino
 use yoshino_core::Schema;
-use yoshino_core::db::{DbAdaptor, DbDataType, DbError};
+use yoshino_core::db::{DbAdaptor, DbData, DbDataType, DbError, DbQueryResult};
 use libsqlite3_sys::{sqlite3, sqlite3_stmt};
 use std::ptr;
 use std::ffi::CString;
-use std::os::raw::c_int;
+use std::os::raw::{c_int, c_char};
 use std::ops::Drop;
+use std::marker::PhantomData;
 
 pub struct SQLiteAdaptor {
     db_handler: *mut sqlite3
@@ -62,12 +63,79 @@ impl SQLiteAdaptor {
         s = s + ");";
         s
     }
+
+    fn get_query_stmt(schema_name: &str, fields: &Vec<(String, DbDataType)>) -> String {
+        let mut s = format!("SELECT ");
+        for i in 0..fields.len() {
+            if i != 0 {
+                s = s + ", ";
+            }
+            let (field_name, _) = fields.get(i).unwrap();
+            s = s + &field_name;
+        }
+        s = s + " FROM " + schema_name + ";";
+        s 
+    }
 }
 
 impl Drop for SQLiteAdaptor {
     fn drop(&mut self) {
         unsafe {
             libsqlite3_sys::sqlite3_close(self.db_handler);
+        }
+    }
+}
+
+pub struct SQLiteRowIterator<T: Schema + 'static> {
+    stmt: *mut sqlite3_stmt,
+    phantom: PhantomData<T>
+}
+
+impl<T: Schema> Iterator for SQLiteRowIterator<T> {
+    type Item = T;
+    fn next(&mut self) -> Option<Self::Item> {
+        let r = unsafe {
+            libsqlite3_sys::sqlite3_step(self.stmt)
+        };
+        match r {
+            libsqlite3_sys::SQLITE_DONE => None,
+            libsqlite3_sys::SQLITE_ROW => {
+                let mut values:Vec<Box<dyn DbData>> = vec![];
+                let fields = T::get_fields();
+                for i in 0..fields.len() {
+                    let (_, field_type) = fields.get(i).unwrap();
+                    match field_type {
+                        DbDataType::Int | DbDataType::NullableInt => {
+                            let v = unsafe { libsqlite3_sys::sqlite3_column_int64(self.stmt, i as i32) as i64};
+                            values.push(Box::new(v));               
+                        }
+                        DbDataType::RowID => {
+                            let v = unsafe { libsqlite3_sys::sqlite3_column_int64(self.stmt, i as i32) as i64};
+                            values.push(Box::new(yoshino_core::RowID::ID(v)))
+                        }
+                        DbDataType::NullableText| DbDataType::Text => {
+                            let v = unsafe { 
+                                let str_ptr = libsqlite3_sys::sqlite3_column_text(self.stmt, i as i32) as *const c_char;
+                                let str_len = libc::strlen(str_ptr);
+                                let str_copy = libc::malloc(str_len) as *mut i8;
+                                libc::strncpy(str_copy, str_ptr, str_len);
+                                String::from_raw_parts(str_copy as *mut u8, str_len, str_len)
+                            };
+                            values.push(Box::new(v));
+                        }
+                    };
+                }
+                Some(T::create_with_values(values))
+            }
+            _ => None
+        }
+    }
+}
+
+impl<T:Schema> Drop for SQLiteRowIterator<T> {
+    fn drop(&mut self) {
+        unsafe {
+            libsqlite3_sys::sqlite3_finalize(self.stmt);
         }
     }
 }
@@ -94,6 +162,7 @@ impl DbAdaptor for SQLiteAdaptor {
         };
         Ok(())
     }
+
     fn insert_record<T: Schema>(&mut self, record: T) -> Result<(), DbError>{
         let schema_name = T::get_schema_name();
         let fields = T::get_fields();
@@ -142,5 +211,26 @@ impl DbAdaptor for SQLiteAdaptor {
             let r = libsqlite3_sys::sqlite3_finalize(stmt);
         }
         Ok(())
+    }
+
+    fn query_all<T:Schema>(&mut self) -> Result<DbQueryResult<T>, DbError>{
+        let schema_name = T::get_schema_name();
+        let fields = T::get_fields();
+        let query_stmt = SQLiteAdaptor::get_query_stmt(&schema_name, &fields);
+        let stmt_cstring = CString::new(query_stmt.as_str()).unwrap();
+        let mut stmt : *mut sqlite3_stmt = ptr::null_mut();
+        let mut tail = ptr::null();
+        unsafe {
+            // TODO: check result value and generate errors
+            let r = libsqlite3_sys::sqlite3_prepare_v2(
+                self.db_handler, 
+                stmt_cstring.as_ptr(),
+                query_stmt.len() as c_int,
+                &mut stmt,
+                &mut tail
+            );
+        };
+        let iter:Box<SQLiteRowIterator<T>> = Box::new(SQLiteRowIterator{stmt, phantom: PhantomData});
+        Ok(DbQueryResult{data_iter: iter})
     }
 }

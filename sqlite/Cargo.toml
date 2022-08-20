@@ -7,5 +7,6 @@ edition = "2021"
 
 [dependencies]
 libsqlite3-sys = {version = "0.25", features = ["bundled"]}
+libc = "0.2"
 # rusqlite = { version = "0.28.0", features = ["bundled"] }
 yoshino-core = {path = "../core"}
