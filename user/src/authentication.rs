@@ -116,7 +116,8 @@ mod tests{
         );
         
         let data = ground_truth.to_db_data();
-        let new_user = UserCredential::from_db_data(&data).unwrap();
+        let boxed_data : Box<(dyn DbData + 'static)>= Box::new(data);
+        let new_user = UserCredential::from_db_data(&boxed_data);
         assert!(new_user.validate_credential(Bytes::from(plain_text)));
     }
 }
