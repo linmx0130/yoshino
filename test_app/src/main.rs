@@ -1,10 +1,9 @@
 use yoshino_sqlite::{SQLiteAdaptor};
 use yoshino_core::db::{DbAdaptor};
-use yoshino_core::{TextField, NullableIntegerField};
+use yoshino_core::{TextField, NullableIntegerField, Cond};
 use yoshino_user::{User};
 use bytes::Bytes;
 use yoshino_derive::Schema;
-
 
 #[derive(Schema)]
 struct Counter {
@@ -32,10 +31,10 @@ fn main() {
     adaptor.insert_record(p1).unwrap();
     adaptor.insert_record(p2).unwrap();
     adaptor.insert_record(p3).unwrap();
-    let cond = yoshino_core::query_cond::Cond::Or{
-        left: Box::new(yoshino_core::query_cond::Cond::IsNull { field_name: "stock".to_string() }),
-        right: Box::new(yoshino_core::query_cond::Cond::IntegerEqualTo { field_name: "stock".to_string(), value: 20 })
-    };
+    let cond = Cond::or(
+        Cond::is_null("stock"),
+        Cond::integer_equal_to("stock", 20)
+    );
     let query_result = adaptor.query_with_cond::<Counter>(cond).unwrap();
     for p in query_result {
         println!("Product: {}, stock = {:?}", p.name, p.stock);
