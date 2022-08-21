@@ -27,8 +27,16 @@ fn main() {
 
     adaptor.create_table_for_schema::<Counter>().unwrap();
     let p1 = Counter {name:"milk".to_string(), stock: Some(20)};
+    let p2 = Counter{name:"cream".to_string(), stock: None};
+    let p3 = Counter{name:"apple".to_string(), stock: Some(30)};
     adaptor.insert_record(p1).unwrap();
-    let query_result = adaptor.query_all::<Counter>().unwrap();
+    adaptor.insert_record(p2).unwrap();
+    adaptor.insert_record(p3).unwrap();
+    let cond = yoshino_core::query_cond::Cond::Or{
+        left: Box::new(yoshino_core::query_cond::Cond::IsNull { field_name: "stock".to_string() }),
+        right: Box::new(yoshino_core::query_cond::Cond::IntegerEqualTo { field_name: "stock".to_string(), value: 20 })
+    };
+    let query_result = adaptor.query_with_cond::<Counter>(cond).unwrap();
     for p in query_result {
         println!("Product: {}, stock = {:?}", p.name, p.stock);
     }

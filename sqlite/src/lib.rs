@@ -80,7 +80,7 @@ impl SQLiteAdaptor {
         s
     }
 
-    fn get_query_stmt(schema_name: &str, fields: &Vec<(String, DbDataType)>) -> String {
+    fn get_query_clause(schema_name: &str, fields: &Vec<(String, DbDataType)>) -> String {
         let mut s = format!("SELECT ");
         for i in 0..fields.len() {
             if i != 0 {
@@ -89,8 +89,43 @@ impl SQLiteAdaptor {
             let (field_name, _) = fields.get(i).unwrap();
             s = s + &field_name;
         }
-        s = s + " FROM " + schema_name + ";";
+        s = s + " FROM " + schema_name;
         s 
+    }
+
+    fn get_condition_stmt_and_params(cond: yoshino_core::query_cond::Cond) -> (String, Vec<Box<dyn DbData>>) {
+        use yoshino_core::query_cond::Cond::*;
+        match cond {
+            IsNull{field_name} => {
+                (format!("{} IS NULL", field_name), vec![])
+            }
+            IsNotNull { field_name } => {
+                (format!("{} IS NOT NULL", field_name), vec![])
+            }
+            IntegerEqualTo { field_name, value } => {
+                (format!("{}=?", field_name), vec![Box::new(value)])
+            }
+            IntegerNotEqualTo { field_name, value } => {
+                (format!("{}<>?", field_name), vec![Box::new(value)])
+            }
+            TextEqualTo { field_name, value } => {
+                (format!("{}=?", field_name), vec![Box::new(value)])
+            }
+            And{left, right} => {
+                let (left_stmt, left_params) = Self::get_condition_stmt_and_params(*left);
+                let (right_stmt, right_params) = Self::get_condition_stmt_and_params(*right);
+                let mut params = left_params;
+                params.extend(right_params.into_iter());
+                (format!("({}) AND ({})", left_stmt, right_stmt), params)
+            }
+            Or{left, right} => {
+                let (left_stmt, left_params) = Self::get_condition_stmt_and_params(*left);
+                let (right_stmt, right_params) = Self::get_condition_stmt_and_params(*right);
+                let mut params = left_params;
+                params.extend(right_params.into_iter());
+                (format!("({}) OR ({})", left_stmt, right_stmt), params)
+            }
+        }
     }
 }
 
@@ -219,7 +254,6 @@ impl DbAdaptor for SQLiteAdaptor {
                 match db_data_box.db_data_type() {
                     yoshino_core::db::DbDataType::Int => {
                         let data_ptr = db_data_box.db_data_ptr() as *const i64;
-                        println!("data_ptr for int = {:?}", data_ptr);
                         let data_value = *data_ptr;
                         libsqlite3_sys::sqlite3_bind_int64(stmt, i, data_value);
                     }
@@ -250,7 +284,7 @@ impl DbAdaptor for SQLiteAdaptor {
     fn query_all<T:Schema>(&mut self) -> Result<DbQueryResult<T>, DbError>{
         let schema_name = T::get_schema_name();
         let fields = T::get_fields();
-        let query_stmt = SQLiteAdaptor::get_query_stmt(&schema_name, &fields);
+        let query_stmt = SQLiteAdaptor::get_query_clause(&schema_name, &fields) + ";";
         let stmt_cstring = CString::new(query_stmt.as_str()).unwrap();
         let mut stmt : *mut sqlite3_stmt = ptr::null_mut();
         let mut tail = ptr::null();
@@ -264,6 +298,55 @@ impl DbAdaptor for SQLiteAdaptor {
                 &mut tail
             ));
         };
+        let iter:Box<SQLiteRowIterator<T>> = Box::new(SQLiteRowIterator{stmt, phantom: PhantomData});
+        Ok(DbQueryResult{data_iter: iter})
+    }
+
+    fn query_with_cond<T:Schema>(&mut self, cond: yoshino_core::query_cond::Cond) -> Result<DbQueryResult<T>, DbError> {
+        let schema_name = T::get_schema_name();
+        let fields = T::get_fields();
+        let query_stmt = SQLiteAdaptor::get_query_clause(&schema_name, &fields);
+        let (cond_stmt, cond_params) = SQLiteAdaptor::get_condition_stmt_and_params(cond);
+        let query_where_cond_stmt = format!("{} WHERE {};", query_stmt, cond_stmt);
+        let stmt_cstring = CString::new(query_where_cond_stmt.as_str()).unwrap();
+        let mut stmt: *mut sqlite3_stmt = ptr::null_mut();
+        let mut tail = ptr::null();
+        unsafe {
+            db_try!(
+                libsqlite3_sys::sqlite3_prepare_v2(
+                    self.db_handler, 
+                    stmt_cstring.as_ptr(), 
+                    query_where_cond_stmt.len() as c_int,
+                     &mut stmt,
+                     &mut tail
+                ));
+
+            for ii in 0..cond_params.len() {
+                let db_data_box = cond_params.get(ii).unwrap();
+                let i = (ii+1) as i32;
+                match db_data_box.db_data_type() {
+                    yoshino_core::db::DbDataType::Int => {
+                        let data_ptr = db_data_box.db_data_ptr() as *const i64;
+                        let data_value = *data_ptr;
+                        libsqlite3_sys::sqlite3_bind_int64(stmt, i, data_value);
+                    }
+                    yoshino_core::db::DbDataType::NullableInt | yoshino_core::db::DbDataType::RowID => {
+                        let data_ptr = db_data_box.db_data_ptr() as *const i64;
+                        if data_ptr != ptr::null() {
+                            let data_value = *data_ptr;
+                            libsqlite3_sys::sqlite3_bind_int64(stmt, i, data_value);
+                        } else {
+                            libsqlite3_sys::sqlite3_bind_null(stmt, i);
+                        }
+                    }
+                    yoshino_core::db::DbDataType::Text | yoshino_core::db::DbDataType::NullableText => {
+                        let data_ptr = db_data_box.db_data_ptr() as *const i8;
+                        let data_len = db_data_box.db_data_len();
+                        libsqlite3_sys::sqlite3_bind_text(stmt, i, data_ptr, data_len as i32, libsqlite3_sys::SQLITE_TRANSIENT());
+                    }
+                }
+            }
+        }
         let iter:Box<SQLiteRowIterator<T>> = Box::new(SQLiteRowIterator{stmt, phantom: PhantomData});
         Ok(DbQueryResult{data_iter: iter})
     }

@@ -1,6 +1,7 @@
 use std::ptr;
 
 use crate::{RowID, Schema};
+use crate::query_cond::Cond;
 
 // Database related core stuff
 #[derive(Debug, Clone)]
@@ -20,6 +21,7 @@ pub trait DbAdaptor {
     fn create_table_for_schema<T: crate::types::Schema>(&mut self) -> Result<(), DbError>;
     fn insert_record<T: crate::types::Schema>(&mut self, record: T) -> Result<(), DbError>;
     fn query_all<T: crate::types::Schema>(&mut self) -> Result<DbQueryResult<T>, DbError>;
+    fn query_with_cond<T: crate::types::Schema>(&mut self, cond: Cond) -> Result<DbQueryResult<T>, DbError>;
 }
 
 pub enum DbDataType {
