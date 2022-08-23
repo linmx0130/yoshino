@@ -39,4 +39,5 @@ fn main() {
     for p in query_result {
         println!("Product: {}, stock = {:?}", p.name, p.stock);
     }
+    adaptor.delete_with_cond::<User>(Cond::text_equal_to("user_name", "admin")).unwrap();
 }

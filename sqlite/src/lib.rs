@@ -127,6 +127,40 @@ impl SQLiteAdaptor {
             }
         }
     }
+
+    fn get_delete_clause(schema_name: &str) -> String {
+        format!("DELETE FROM {}", schema_name)
+    }
+
+    fn bind_params_to_stmt(stmt: *mut sqlite3_stmt, params: &Vec<Box<dyn DbData>>) {
+        for ii in 0..params.len() {
+            let db_data_box = params.get(ii).unwrap();
+            let i = (ii+1) as i32;
+            unsafe{
+                match db_data_box.db_data_type() {
+                    yoshino_core::db::DbDataType::Int => {
+                        let data_ptr = db_data_box.db_data_ptr() as *const i64;
+                        let data_value = *data_ptr;
+                        libsqlite3_sys::sqlite3_bind_int64(stmt, i, data_value);
+                    }
+                    yoshino_core::db::DbDataType::NullableInt | yoshino_core::db::DbDataType::RowID => {
+                        let data_ptr = db_data_box.db_data_ptr() as *const i64;
+                        if data_ptr != ptr::null() {
+                            let data_value = *data_ptr;
+                            libsqlite3_sys::sqlite3_bind_int64(stmt, i, data_value);
+                        } else {
+                            libsqlite3_sys::sqlite3_bind_null(stmt, i);
+                        }
+                    }
+                    yoshino_core::db::DbDataType::Text | yoshino_core::db::DbDataType::NullableText => {
+                        let data_ptr = db_data_box.db_data_ptr() as *const i8;
+                        let data_len = db_data_box.db_data_len();
+                        libsqlite3_sys::sqlite3_bind_text(stmt, i, data_ptr, data_len as i32, libsqlite3_sys::SQLITE_TRANSIENT());
+                    }
+                }
+            }
+        }
+    }
 }
 
 impl Drop for SQLiteAdaptor {
@@ -247,33 +281,7 @@ impl DbAdaptor for SQLiteAdaptor {
                 &mut stmt, 
             &mut tail));
         }
-        for ii in 0..params.len() {
-            let db_data_box = params.get(ii).unwrap();
-            let i = (ii+1) as i32;
-            unsafe{
-                match db_data_box.db_data_type() {
-                    yoshino_core::db::DbDataType::Int => {
-                        let data_ptr = db_data_box.db_data_ptr() as *const i64;
-                        let data_value = *data_ptr;
-                        libsqlite3_sys::sqlite3_bind_int64(stmt, i, data_value);
-                    }
-                    yoshino_core::db::DbDataType::NullableInt | yoshino_core::db::DbDataType::RowID => {
-                        let data_ptr = db_data_box.db_data_ptr() as *const i64;
-                        if data_ptr != ptr::null() {
-                            let data_value = *data_ptr;
-                            libsqlite3_sys::sqlite3_bind_int64(stmt, i, data_value);
-                        } else {
-                            libsqlite3_sys::sqlite3_bind_null(stmt, i);
-                        }
-                    }
-                    yoshino_core::db::DbDataType::Text | yoshino_core::db::DbDataType::NullableText => {
-                        let data_ptr = db_data_box.db_data_ptr() as *const i8;
-                        let data_len = db_data_box.db_data_len();
-                        libsqlite3_sys::sqlite3_bind_text(stmt, i, data_ptr, data_len as i32, libsqlite3_sys::SQLITE_TRANSIENT());
-                    }
-                }
-            }
-        }
+        SQLiteAdaptor::bind_params_to_stmt(stmt, &params);
         unsafe{
             db_try!(libsqlite3_sys::sqlite3_step(stmt));
             db_try!(libsqlite3_sys::sqlite3_finalize(stmt));
@@ -320,34 +328,30 @@ impl DbAdaptor for SQLiteAdaptor {
                      &mut stmt,
                      &mut tail
                 ));
-
-            for ii in 0..cond_params.len() {
-                let db_data_box = cond_params.get(ii).unwrap();
-                let i = (ii+1) as i32;
-                match db_data_box.db_data_type() {
-                    yoshino_core::db::DbDataType::Int => {
-                        let data_ptr = db_data_box.db_data_ptr() as *const i64;
-                        let data_value = *data_ptr;
-                        libsqlite3_sys::sqlite3_bind_int64(stmt, i, data_value);
-                    }
-                    yoshino_core::db::DbDataType::NullableInt | yoshino_core::db::DbDataType::RowID => {
-                        let data_ptr = db_data_box.db_data_ptr() as *const i64;
-                        if data_ptr != ptr::null() {
-                            let data_value = *data_ptr;
-                            libsqlite3_sys::sqlite3_bind_int64(stmt, i, data_value);
-                        } else {
-                            libsqlite3_sys::sqlite3_bind_null(stmt, i);
-                        }
-                    }
-                    yoshino_core::db::DbDataType::Text | yoshino_core::db::DbDataType::NullableText => {
-                        let data_ptr = db_data_box.db_data_ptr() as *const i8;
-                        let data_len = db_data_box.db_data_len();
-                        libsqlite3_sys::sqlite3_bind_text(stmt, i, data_ptr, data_len as i32, libsqlite3_sys::SQLITE_TRANSIENT());
-                    }
-                }
-            }
+            SQLiteAdaptor::bind_params_to_stmt(stmt, &cond_params);
         }
         let iter:Box<SQLiteRowIterator<T>> = Box::new(SQLiteRowIterator{stmt, phantom: PhantomData});
         Ok(DbQueryResult{data_iter: iter})
+    }
+
+    fn delete_with_cond<T: Schema>(&mut self, cond: yoshino_core::Cond) -> Result<(), DbError> {
+        let schema_name = T::get_schema_name();
+        let delete_clause = SQLiteAdaptor::get_delete_clause(&schema_name);
+        let (cond_stmt, cond_params) = SQLiteAdaptor::get_condition_stmt_and_params(cond);
+        let delete_where_cond_stmt = format!("{} WHERE {};", delete_clause, cond_stmt);
+        let stmt_cstring = CString::new(delete_where_cond_stmt.as_str()).unwrap();
+        let mut stmt: *mut sqlite3_stmt = ptr::null_mut();
+        let mut tail = ptr::null();
+        unsafe {
+            db_try!(libsqlite3_sys::sqlite3_prepare_v2(
+                self.db_handler, 
+                stmt_cstring.as_ptr(),
+                delete_where_cond_stmt.len() as c_int,
+                &mut stmt, &mut tail));
+            SQLiteAdaptor::bind_params_to_stmt(stmt, &cond_params);
+            db_try!(libsqlite3_sys::sqlite3_step(stmt));
+            db_try!(libsqlite3_sys::sqlite3_finalize(stmt));
+        }
+        Ok(())
     }
 }
