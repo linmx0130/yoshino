@@ -93,6 +93,18 @@ impl SQLiteAdaptor {
         s 
     }
 
+    fn get_update_clause(schema_name: &str, fields: &Vec<(String, DbDataType)>) -> String {
+        let mut s = format!("UPDATE {} SET ", schema_name);
+        for i in 0..fields.len() {
+            if i != 0 {
+                s = s + ", "
+            }
+            let (field_name, _) = fields.get(i).unwrap();
+            s = s + format!("{} = ?", field_name).as_ref();
+        }
+        s
+    }
+
     fn get_condition_stmt_and_params(cond: yoshino_core::query_cond::Cond) -> (String, Vec<Box<dyn DbData>>) {
         use yoshino_core::query_cond::Cond::*;
         match cond {
@@ -349,6 +361,34 @@ impl DbAdaptor for SQLiteAdaptor {
                 delete_where_cond_stmt.len() as c_int,
                 &mut stmt, &mut tail));
             SQLiteAdaptor::bind_params_to_stmt(stmt, &cond_params);
+            db_try!(libsqlite3_sys::sqlite3_step(stmt));
+            db_try!(libsqlite3_sys::sqlite3_finalize(stmt));
+        }
+        Ok(())
+    }
+
+    fn update_with_cond<T: Schema>(&mut self, cond:yoshino_core::Cond, record: T) -> Result<(), DbError> {
+        let schema_name = T::get_schema_name();
+        let fields = T::get_fields();
+        let update_clause = SQLiteAdaptor::get_update_clause(&schema_name, &fields);
+        let (cond_stmt, cond_params) = SQLiteAdaptor::get_condition_stmt_and_params(cond);
+        let update_where_cond_stmt = format!("{} WHERE {};", update_clause, cond_stmt);
+        let mut update_stmt_params = record.get_values();
+        update_stmt_params.extend(cond_params);
+
+        let stmt_cstring = CString::new(update_where_cond_stmt.as_str()).unwrap();
+        let mut stmt: *mut sqlite3_stmt = ptr::null_mut();
+        let mut tail = ptr::null();
+
+        unsafe {
+            db_try!(
+                libsqlite3_sys::sqlite3_prepare_v2(
+                    self.db_handler,
+                    stmt_cstring.as_ptr(),
+                    update_where_cond_stmt.len() as c_int,
+                    &mut stmt, &mut tail)
+                );
+            SQLiteAdaptor::bind_params_to_stmt(stmt, &update_stmt_params);
             db_try!(libsqlite3_sys::sqlite3_step(stmt));
             db_try!(libsqlite3_sys::sqlite3_finalize(stmt));
         }

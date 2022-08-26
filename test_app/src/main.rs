@@ -1,7 +1,7 @@
 use yoshino_sqlite::{SQLiteAdaptor};
 use yoshino_core::db::{DbAdaptor};
 use yoshino_core::{TextField, NullableIntegerField, Cond};
-use yoshino_user::{User};
+use yoshino_user::{User, UserCredential};
 use bytes::Bytes;
 use yoshino_derive::Schema;
 
@@ -22,6 +22,16 @@ fn main() {
     let query_result = adaptor.query_all::<User>().unwrap();
     for user in query_result {
         println!("user: {:?}", user);
+        let mut new_user = user.clone();
+        new_user.login_credential = UserCredential::new(
+            Bytes::from("new_password"), 
+            yoshino_user::UserCredentialHashType::Sha256WithSalt(Bytes::from("salt2"))
+        );
+        adaptor.update_with_cond(Cond::text_equal_to("user_name", "admin"), new_user).unwrap();
+    }
+    println!(">> New users");
+    for user in adaptor.query_all::<User>().unwrap() {
+        println!("user: {:?}", user);
     }
 
     adaptor.create_table_for_schema::<Counter>().unwrap();
@@ -40,4 +50,5 @@ fn main() {
         println!("Product: {}, stock = {:?}", p.name, p.stock);
     }
     adaptor.delete_with_cond::<User>(Cond::text_equal_to("user_name", "admin")).unwrap();
+
 }

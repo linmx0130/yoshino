@@ -23,6 +23,7 @@ pub trait DbAdaptor {
     fn query_all<T: crate::types::Schema>(&mut self) -> Result<DbQueryResult<T>, DbError>;
     fn query_with_cond<T: crate::types::Schema>(&mut self, cond: Cond) -> Result<DbQueryResult<T>, DbError>;
     fn delete_with_cond<T: crate::types::Schema>(&mut self, cond: Cond) -> Result<(), DbError>;
+    fn update_with_cond<T: crate::types::Schema>(&mut self, cond:Cond, record: T) -> Result<(), DbError>;
 }
 
 pub enum DbDataType {

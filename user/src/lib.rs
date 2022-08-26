@@ -3,17 +3,18 @@
  */
 
 mod authentication;
-pub use authentication::UserCredentialHashType as UserCredentialHashType;
+pub use authentication::UserCredentialHashType;
+pub use authentication::UserCredential;
 use bytes::Bytes;
 use yoshino_core::{TextField, RowID};
 use yoshino_derive::Schema;
 
 /// The user representation for login purpose
-#[derive(Schema, Debug)]
+#[derive(Schema, Debug, Clone)]
 pub struct User {
     id: RowID,
     pub user_name: String,
-    login_credential: authentication::UserCredential,
+    pub login_credential: authentication::UserCredential,
 }
 
 impl User {
