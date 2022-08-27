@@ -3,7 +3,12 @@ name = "yoshino-core"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+license = "MIT"
+description = "Core crate of Yoshino, a simple structural data modeling library"
+homepage = "https://github.com/linmx0130/yoshino"
+readme = "../README.md"
+repository = "https://github.com/linmx0130/yoshino"
+keywords = ["database"]
 
 [dependencies]
 bytes = "1"
