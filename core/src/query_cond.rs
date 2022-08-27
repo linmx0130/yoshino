@@ -1,3 +1,5 @@
+use crate::Schema;
+
 /// Query conditions.
 pub enum Cond {
     IsNull{field_name: String},
@@ -36,5 +38,24 @@ impl Cond {
     
     pub fn text_equal_to(field_name: &str, value: &str) -> Cond {
         Cond::TextEqualTo { field_name: field_name.to_string(), value: value.to_string() }
+    }
+
+    /// Get the condition that the row id of record is equal to the given `record`.
+    /// Return None if the given record doesn't have a row id field or the field is new.
+    pub fn is_row_id_equal_to<T: Schema>(record: &T) -> Option<Cond> {
+        let row_id_field_and_value = record.get_row_id_field();
+        match row_id_field_and_value {
+            Some((field, row_id)) => {
+                match row_id {
+                    crate::RowID::NEW => None,
+                    crate::RowID::ID(value) => Some(
+                        Cond::IntegerEqualTo { 
+                            field_name: field, 
+                            value: value}
+                        )
+                }
+            }
+            None => None
+        }
     }
 }
