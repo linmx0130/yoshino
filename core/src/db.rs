@@ -157,7 +157,7 @@ impl DbData for crate::types::RowID {
     fn db_data_ptr(&self) -> *const core::ffi::c_void {
         match self {
             RowID::NEW => ptr::null(),
-            RowID::ID(_) => self as *const RowID as *const core::ffi::c_void
+            RowID::ID(v) => v as *const i64 as *const core::ffi::c_void
         }
     }
     fn db_data_len(&self) -> usize {
@@ -169,10 +169,7 @@ impl DbData for crate::types::RowID {
             RowID::NEW
         } else {
             unsafe{
-                match *(src.db_data_ptr() as *const RowID) {
-                    RowID::NEW => RowID::NEW,
-                    RowID::ID(v) => RowID::ID(v)
-                }
+                RowID::ID(*(src.db_data_ptr() as *const i64))
             }   
         }
     }

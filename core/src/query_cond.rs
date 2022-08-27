@@ -1,6 +1,7 @@
 use crate::Schema;
 
 /// Query conditions.
+#[derive(Clone, Debug)]
 pub enum Cond {
     IsNull{field_name: String},
     IsNotNull {field_name: String},
