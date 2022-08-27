@@ -1,12 +1,10 @@
 [package]
-name = "test_app"
+name = "yoshino-prelude"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-yoshino-prelude = {path= "../prelude"}
-yoshino-sqlite= {path= "../sqlite"}
-yoshino-user = {path="../user"}
-bytes = "1"
+yoshino-core= {path= "../core"}
+yoshino-derive= {path= "../derive"}

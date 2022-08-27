@@ -1,9 +1,7 @@
+use yoshino_prelude::*;
 use yoshino_sqlite::{SQLiteAdaptor};
-use yoshino_core::db::{DbAdaptor};
-use yoshino_core::{TextField, NullableIntegerField, Cond};
 use yoshino_user::{User, UserCredential};
 use bytes::Bytes;
-use yoshino_derive::Schema;
 
 #[derive(Schema)]
 struct Counter {
