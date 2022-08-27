@@ -123,6 +123,11 @@ fn get_struct_fields_from_stream(src: TokenStream) -> Vec<(String, String)> {
             _ => {}
         }
     }
+    
+    // end with state 2 -> there is a last field without ',' in the end
+    if state == 2 {
+        fields.push((current_field_name.to_owned(), current_field_type.to_owned()));
+    }
     fields
 }
 

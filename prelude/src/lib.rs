@@ -1,7 +1,7 @@
 //! This is the main API export crate for Yoshino.
 //! ## Usage
 //! Simply to derive Schema from yoshino:
-//! ```text
+//! ```
 //! use yoshino_prelude::*;
 //! 
 //! #[derive(Schema)]
