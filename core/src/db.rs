@@ -1,15 +1,17 @@
+//! Database related core stuff
 use std::ptr;
-
 use crate::{RowID, Schema};
 use crate::query_cond::Cond;
 
-// Database related core stuff
+/// Database error
 #[derive(Debug, Clone)]
 pub struct DbError(pub String);
 
+/// Query result from the data base. It's a wrapper of DB result iterator.
 pub struct DbQueryResult<T:Schema> {
     pub data_iter: Box<dyn Iterator<Item=T>>
 }
+
 impl<T:Schema> Iterator for DbQueryResult<T>{
     type Item = T;
     fn next(&mut self) -> Option<Self::Item> {
@@ -17,15 +19,25 @@ impl<T:Schema> Iterator for DbQueryResult<T>{
     }
 }
 
+/// Yoshino database adaptor trait.
+/// 
+/// Every database adaptor implementation should implement this trait.
 pub trait DbAdaptor {
+    /// Create data table in the database for a Yoshino schema.
     fn create_table_for_schema<T: crate::types::Schema>(&mut self) -> Result<(), DbError>;
+    /// Insert a record to the database.
     fn insert_record<T: crate::types::Schema>(&mut self, record: T) -> Result<(), DbError>;
+    /// Query all records of the schema.
     fn query_all<T: crate::types::Schema>(&mut self) -> Result<DbQueryResult<T>, DbError>;
+    /// Query records of the schema that matches the condition.
     fn query_with_cond<T: crate::types::Schema>(&mut self, cond: Cond) -> Result<DbQueryResult<T>, DbError>;
+    /// Delete records of the schema that matches the condition.
     fn delete_with_cond<T: crate::types::Schema>(&mut self, cond: Cond) -> Result<(), DbError>;
+    /// Update records of the schema that matches the condition.
     fn update_with_cond<T: crate::types::Schema>(&mut self, cond:Cond, record: T) -> Result<(), DbError>;
 }
 
+/// Database data type supported by Yoshino.
 pub enum DbDataType {
     NullableText,
     NullableInt,
@@ -33,6 +45,7 @@ pub enum DbDataType {
     Int,
     RowID 
 }
+
 /// The mark trait to indicate that this type can be directly obtained from data base.
 pub trait DbData {
     /// data type in `DbDataType`
