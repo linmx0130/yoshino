@@ -1,34 +1,64 @@
-/// It can be serialized as a database text field
+//! Data type declarations for Yoshino.
+//! 
+//! Only the types that implement a trait of "fields" can be used in Yoshino
+//! schema struct. Now available field traits are:
+//! 
+//! * `TextField` - nonnull text field.
+//! * `NullableTextField` - nullable text field.
+//! * `IntegerField` - nonnull 64-bit integer field.
+//! * `NullableIntegerField` - nullable 64-bit integer field.
+//! 
+//! If you want to use a custom type in schema struct, you need to implement 
+//! one field trait for this custom type.
+//! 
+//! All field traits declare the method to generate DbData object that can be 
+//! accepted by the Yoshino database interfaces.
+
 use crate::db::{DbData, DbDataType};
 
+/// It can be serialized as a String in Yoshino.
 pub trait TextField: Sized{
+    /// Create an instance from a boxed DbData trait object.
     fn from_db_data(data: &Box<dyn DbData>) -> Self;
+    /// Create the string to be used by the Yoshino.
     fn to_db_data(&self) -> String;
+    /// The `DbDataType` of this field. For all `TextField` objects, it's `DbDataType::Text`.
     fn db_field_type() -> DbDataType {
         DbDataType::Text
     }
 }
 
+/// It can be serialized as a nullable String in Yoshino.
 pub trait NullableTextField: Sized {
+    /// Create an instance from a boxed DbData trait object.
     fn from_db_data(data: &Box< dyn DbData>) -> Self;
+    /// Create the string to be used by the Yoshino.
     fn to_db_data(&self) -> Option<String>;
+    /// The `DbDataType` of this field. For all `NullableTextField` objects, it's `DbDataType::NullableText`.
     fn db_field_type() -> DbDataType {
         DbDataType::NullableText
     }
 }
 
-/// It can be serailized as a 64-bit integer
+/// It can be serailized as a 64-bit integer in Yoshino.
 pub trait IntegerField: Sized {
+    /// Create an instance from a boxed DbData trait object.
     fn from_db_data(data: &Box<dyn DbData>) -> Self;
+    /// Create the i64 to be used by the Yoshino.
     fn to_db_data(&self)-> i64;
+    /// The `DbDataType` of this field. For all `IntegerField` objects, it's `DbDataType::Int`.
     fn db_field_type() -> DbDataType {
         DbDataType::Int
     }
 }
 
+/// It can be serailized as a nullable 64-bit integer in Yoshino.
 pub trait NullableIntegerField: Sized {
+    /// Create an instance from a boxed DbData trait object.
     fn from_db_data(data: &Box<dyn DbData>) -> Self;
+    /// Create the i64 to be used by the Yoshino.
     fn to_db_data(&self)-> Option<i64>;
+    /// The `DbDataType` of this field. For all `IntegerField` objects, it's `DbDataType::NullableInt`.
     fn db_field_type() -> DbDataType {
         DbDataType::NullableInt
     }
