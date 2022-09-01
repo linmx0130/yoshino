@@ -1,4 +1,4 @@
-/// SQLite adaptor for Project Yoshino
+//! SQLite adaptor for Project Yoshino
 use yoshino_core::Schema;
 use yoshino_core::db::{DbAdaptor, DbData, DbDataType, DbError, DbQueryResult};
 use libsqlite3_sys::{sqlite3, sqlite3_stmt};

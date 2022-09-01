@@ -1,3 +1,5 @@
+//! Yoshino derive macro for Schema trait.
+
 extern crate proc_macro;
 
 use proc_macro::token_stream::IntoIter;
@@ -5,6 +7,7 @@ use proc_macro::TokenTree;
 use proc_macro::TokenStream;
 use proc_macro::TokenTree::{Group, Ident, Punct}; 
 
+/// Derive macro for implementing `yoshino_core::Schema` trait.
 #[proc_macro_derive(Schema)]
 pub fn derive_schema_fn(src: TokenStream) -> TokenStream {
     let mut src_tokens = src.into_iter();
