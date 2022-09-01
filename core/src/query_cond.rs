@@ -21,7 +21,9 @@ pub enum Cond {
     /// Both conditions are true.
     And {left: Box<Cond>, right: Box<Cond>},
     /// At least one of the two conditions is true.
-    Or {left: Box<Cond>, right: Box<Cond>}
+    Or {left: Box<Cond>, right: Box<Cond>},
+    /// The negation of the condition expression
+    Not {cond: Box<Cond>}
 }
 
 impl Cond {
@@ -33,6 +35,11 @@ impl Cond {
     /// Both conditions are true.
     pub fn and(left: Cond, right: Cond) -> Cond{
         Cond::And { left: Box::new(left), right: Box::new(right) }
+    }
+
+    /// The negation of the condition expression.
+    pub fn not(cond: Cond) -> Cond {
+        Cond::Not { cond: Box::new(cond) }
     }
 
     /// The field is null.

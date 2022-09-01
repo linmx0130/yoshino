@@ -137,6 +137,10 @@ impl SQLiteAdaptor {
                 params.extend(right_params.into_iter());
                 (format!("({}) OR ({})", left_stmt, right_stmt), params)
             }
+            Not{cond} => {
+                let (stmt, params) = Self::get_condition_stmt_and_params(*cond);          
+                (format!("NOT ({})", stmt), params)
+            }
         }
     }
 
