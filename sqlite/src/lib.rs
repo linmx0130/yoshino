@@ -40,7 +40,7 @@ impl SQLiteAdaptor {
         })
     }
 
-    pub(crate) fn get_create_table_stmt_code(schema_name: &str, fields: &Vec<(String, DbDataType)>) -> String {
+    fn get_create_table_stmt_code(schema_name: &str, fields: &Vec<(String, DbDataType)>) -> String {
         let mut s = format!("CREATE TABLE IF NOT EXISTS {} (", schema_name);
         for i in 0..fields.len() {
             if i != 0 {
@@ -60,7 +60,7 @@ impl SQLiteAdaptor {
         s
     }
 
-    pub(crate) fn get_insert_value_stmt_code(schema_name: &str, fields: &Vec<(String, DbDataType)>) -> String {
+    fn get_insert_value_stmt_code(schema_name: &str, fields: &Vec<(String, DbDataType)>) -> String {
         let mut s = format!("INSERT INTO {} (", schema_name);
         for i in 0..fields.len() {
             if i != 0 {
