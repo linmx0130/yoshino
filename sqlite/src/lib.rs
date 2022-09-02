@@ -40,7 +40,7 @@ impl SQLiteAdaptor {
         })
     }
 
-    fn get_create_table_stmt_code(schema_name: &str, fields: &Vec<(String, DbDataType)>) -> String {
+    pub(crate) fn get_create_table_stmt_code(schema_name: &str, fields: &Vec<(String, DbDataType)>) -> String {
         let mut s = format!("CREATE TABLE IF NOT EXISTS {} (", schema_name);
         for i in 0..fields.len() {
             if i != 0 {
@@ -49,7 +49,7 @@ impl SQLiteAdaptor {
             let (field_name, field_type) = fields.get(i).unwrap();
             s = s + field_name + " ";
             s = s + match  field_type {
-                DbDataType::Int => " INTEGER NOT NULL",
+                DbDataType::Int => "INTEGER NOT NULL",
                 DbDataType::NullableInt => "INTEGER",
                 DbDataType::Text => "TEXT NOT NULL",
                 DbDataType::NullableText => "TEXT",
@@ -60,7 +60,7 @@ impl SQLiteAdaptor {
         s
     }
 
-    fn get_insert_value_stmt_code(schema_name: &str, fields: &Vec<(String, DbDataType)>) -> String {
+    pub(crate) fn get_insert_value_stmt_code(schema_name: &str, fields: &Vec<(String, DbDataType)>) -> String {
         let mut s = format!("INSERT INTO {} (", schema_name);
         for i in 0..fields.len() {
             if i != 0 {
@@ -399,3 +399,6 @@ impl DbAdaptor for SQLiteAdaptor {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod test;
