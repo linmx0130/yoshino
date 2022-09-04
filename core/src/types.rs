@@ -7,6 +7,7 @@
 //! * `NullableTextField` - nullable text field.
 //! * `IntegerField` - nonnull 64-bit integer field.
 //! * `NullableIntegerField` - nullable 64-bit integer field.
+//! * `FloatField` - nonnull 64-bit floating point field.
 //! 
 //! If you want to use a custom type in schema struct, you need to implement 
 //! one field trait for this custom type.
@@ -64,6 +65,18 @@ pub trait NullableIntegerField: Sized {
     }
 }
 
+/// It can be serailized as 64-bit floating point numeric number in Yoshino.
+pub trait FloatField: Sized {
+    /// Create an instance from a boxed DbData trait object.
+    fn from_db_data(data: &Box<dyn DbData>) -> Self;
+    /// Create the f64 to be used by the Yoshino.
+    fn to_db_data(&self)-> f64;
+    /// The `DbDataType` of this field. For all `FloatField` objects, it's `DbDataType::Float`.
+    fn db_field_type() -> DbDataType {
+        DbDataType::Float
+    }
+}
+
 impl TextField for String {
     fn from_db_data(data: &Box<dyn DbData>) -> String {
         <String as DbData>::from_boxed_db_data(data)
@@ -99,6 +112,15 @@ impl NullableIntegerField for Option<i64> {
         <Option<i64> as DbData>::from_boxed_db_data(data)
     }
     fn to_db_data(&self) -> Option<i64> {
+        *self
+    }
+}
+
+impl FloatField for f64 {
+    fn from_db_data(data: &Box<dyn DbData>) -> Self {
+        <f64 as DbData>::from_boxed_db_data(data)
+    }
+    fn to_db_data(&self)-> f64 {
         *self
     }
 }

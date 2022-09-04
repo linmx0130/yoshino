@@ -53,6 +53,7 @@ impl SQLiteAdaptor {
                 DbDataType::NullableInt => "INTEGER",
                 DbDataType::Text => "TEXT NOT NULL",
                 DbDataType::NullableText => "TEXT",
+                DbDataType::Float => "REAL",
                 DbDataType::RowID => "INTEGER PRIMARY KEY"
             }
         }
@@ -159,6 +160,11 @@ impl SQLiteAdaptor {
                         let data_value = *data_ptr;
                         libsqlite3_sys::sqlite3_bind_int64(stmt, i, data_value);
                     }
+                    yoshino_core::db::DbDataType::Float => {
+                        let data_ptr = db_data_box.db_data_ptr() as *const f64;
+                        let data_value = *data_ptr;
+                        libsqlite3_sys::sqlite3_bind_double(stmt, i, data_value);
+                    }
                     yoshino_core::db::DbDataType::NullableInt | yoshino_core::db::DbDataType::RowID => {
                         let data_ptr = db_data_box.db_data_ptr() as *const i64;
                         if data_ptr != ptr::null() {
@@ -226,6 +232,12 @@ impl<T: Schema> Iterator for SQLiteRowIterator<T> {
                         DbDataType::Int => {
                             let v = unsafe { libsqlite3_sys::sqlite3_column_int64(self.stmt, i as i32) as i64};
                             values.push(Box::new(v));               
+                        }
+                        DbDataType::Float => {
+                            let v = unsafe {
+                                libsqlite3_sys::sqlite3_column_double(self.stmt, i as i32) as f64
+                            };
+                            values.push(Box::new(v));
                         }
                         DbDataType::RowID => {
                             let v = unsafe { libsqlite3_sys::sqlite3_column_int64(self.stmt, i as i32) as i64};

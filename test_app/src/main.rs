@@ -7,6 +7,7 @@ use bytes::Bytes;
 struct Counter {
     pub name: String,
     pub stock: Option<i64>,
+    pub score: f64
 }
 
 fn main() {
@@ -33,9 +34,9 @@ fn main() {
     }
 
     adaptor.create_table_for_schema::<Counter>().unwrap();
-    let p1 = Counter {name:"milk".to_string(), stock: Some(20)};
-    let p2 = Counter{name:"cream".to_string(), stock: None};
-    let p3 = Counter{name:"apple".to_string(), stock: Some(30)};
+    let p1 = Counter {name:"milk".to_string(), stock: Some(20), score: 1.02};
+    let p2 = Counter{name:"cream".to_string(), stock: None, score: 2.01};
+    let p3 = Counter{name:"apple".to_string(), stock: Some(30), score: 3.11};
     adaptor.insert_record(p1).unwrap();
     adaptor.insert_record(p2).unwrap();
     adaptor.insert_record(p3).unwrap();
@@ -45,7 +46,7 @@ fn main() {
     );
     let query_result = adaptor.query_with_cond::<Counter>(cond).unwrap();
     for p in query_result {
-        println!("Product: {}, stock = {:?}", p.name, p.stock);
+        println!("Product: {}, stock = {:?} score={:?}", p.name, p.stock, p.score);
     }
 
 

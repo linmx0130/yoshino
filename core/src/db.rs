@@ -43,6 +43,7 @@ pub enum DbDataType {
     NullableInt,
     Text,
     Int,
+    Float,
     RowID 
 }
 
@@ -184,6 +185,23 @@ impl DbData for crate::types::RowID {
             unsafe{
                 RowID::ID(*(src.db_data_ptr() as *const i64))
             }   
+        }
+    }
+}
+
+impl DbData for f64 {
+    fn db_data_type(&self) -> DbDataType {
+        DbDataType::Float
+    }
+    fn db_data_ptr(&self) -> *const core::ffi::c_void {
+        self as *const f64 as *const core::ffi::c_void
+    }
+    fn db_data_len(&self) -> usize {
+        8
+    }
+    fn from_boxed_db_data(src: &Box<dyn DbData>) -> Self where Self: Sized {
+        unsafe {
+            *(src.db_data_ptr() as *const f64)    
         }
     }
 }
