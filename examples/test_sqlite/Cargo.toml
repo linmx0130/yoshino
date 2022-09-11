@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-yoshino-prelude = {path= "../prelude"}
-yoshino-sqlite= {path= "../sqlite"}
-yoshino-user = {path="../user"}
+yoshino-prelude = {path= "../../prelude"}
+yoshino-sqlite= {path= "../../sqlite"}
+yoshino-user = {path="../../user"}
 bytes = "1"

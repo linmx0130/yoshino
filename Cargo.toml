@@ -6,5 +6,5 @@ members = [
     "user",
     "sqlite",
     "prelude",
-    "test_app"
+    "examples/test_sqlite"
 ]
