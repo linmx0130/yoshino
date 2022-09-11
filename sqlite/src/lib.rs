@@ -121,6 +121,18 @@ impl SQLiteAdaptor {
             IntegerNotEqualTo { field_name, value } => {
                 (format!("{}<>?", field_name), vec![Box::new(value)])
             }
+            IntegerGreaterThan { field_name, value } => {
+                (format!("{}>?", field_name), vec![Box::new(value)])
+            }
+            IntegerLessThan { field_name, value } => {
+                (format!("{}<?", field_name), vec![Box::new(value)])
+            }
+            IntegerGreaterThanOrEqualTo { field_name, value } => {
+                (format!("{}>=?", field_name), vec![Box::new(value)])
+            }
+            IntegerLessThanOrEqualTo { field_name, value } => {
+                (format!("{}<=?", field_name), vec![Box::new(value)])
+            }
             TextEqualTo { field_name, value } => {
                 (format!("{}=?", field_name), vec![Box::new(value)])
             }

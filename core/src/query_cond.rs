@@ -18,6 +18,14 @@ pub enum Cond {
     IntegerEqualTo{field_name: String, value: i64},
     /// The field is an integer and it's not equal to `value`.
     IntegerNotEqualTo{field_name: String, value: i64},
+    /// The field is an integer and it's great than `value`.
+    IntegerGreaterThan{field_name: String, value: i64},
+    /// The field is an integer and it's less than `value`.
+    IntegerLessThan{field_name: String, value: i64},
+    /// The field is an integer and it's great than or equal to `value`.
+    IntegerGreaterThanOrEqualTo{field_name: String, value: i64},
+    /// The field is an integer and it's less than or equal to `value`.
+    IntegerLessThanOrEqualTo{field_name: String, value: i64},
     /// Both conditions are true.
     And {left: Box<Cond>, right: Box<Cond>},
     /// At least one of the two conditions is true.
@@ -62,6 +70,26 @@ impl Cond {
         Cond::IntegerNotEqualTo { field_name: field_name.to_string(), value}
     }
     
+    /// The field is an integer and it's great than `value`.
+    pub fn integer_great_than(field_name: &str, value: i64) -> Cond {
+        Cond::IntegerGreaterThan { field_name: field_name.to_string(), value}
+    }    
+    
+    /// The field is an integer and it's less than `value`.
+    pub fn integer_less_than(field_name: &str, value: i64) -> Cond {
+        Cond::IntegerLessThan { field_name: field_name.to_string(), value}
+    }
+
+    /// The field is an integer and it's great than or equal to `value`.
+    pub fn integer_great_than_or_equal_to(field_name: &str, value: i64) -> Cond {
+        Cond::IntegerGreaterThanOrEqualTo { field_name: field_name.to_string(), value}
+    }    
+
+    /// The field is an integer and it's less than or equal to `value`.
+    pub fn integer_less_than_or_equal_to(field_name: &str, value: i64) -> Cond {
+        Cond::IntegerLessThanOrEqualTo { field_name: field_name.to_string(), value}
+    }
+
     /// The field is a text and it's equal to `value`.
     pub fn text_equal_to(field_name: &str, value: &str) -> Cond {
         Cond::TextEqualTo { field_name: field_name.to_string(), value: value.to_string() }
