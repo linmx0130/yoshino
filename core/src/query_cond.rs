@@ -114,3 +114,34 @@ impl Cond {
         }
     }
 }
+
+impl std::ops::BitOr<Cond> for Cond {
+    type Output = Self;
+
+    fn bitor(self, rhs: Cond) -> Self::Output {
+        Cond::Or {
+            left: Box::new(self),
+            right: Box::new(rhs),
+        }
+    }
+}
+
+impl std::ops::BitAnd<Cond> for Cond {
+    type Output = Self;
+
+    fn bitand(self, rhs: Cond) -> Self::Output {
+        Cond::And {
+            left: Box::new(self),
+            right: Box::new(rhs),
+        }
+    }
+}
+
+impl std::ops::Not for Cond {
+    type Output = Self;
+
+    fn not(self) -> Self::Output {
+        Cond::Not { cond: Box::new(self) }
+    }
+}
+
