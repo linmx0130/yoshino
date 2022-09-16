@@ -40,10 +40,7 @@ fn main() {
     adaptor.insert_record(p1).unwrap();
     adaptor.insert_record(p2).unwrap();
     adaptor.insert_record(p3).unwrap();
-    let cond = Cond::or(
-        Cond::is_null("stock"),
-        Cond::integer_equal_to("stock", 20)
-    );
+    let cond = Cond::is_null("stock") | Cond::integer_equal_to("stock", 20);
     let query_result = adaptor.query_with_cond::<Counter>(cond).unwrap();
     for p in query_result {
         println!("Product: {}, stock = {:?} score={:?}", p.name, p.stock, p.score);
