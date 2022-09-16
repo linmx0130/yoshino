@@ -1,0 +1,11 @@
+[package]
+name = "test_mysql"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+yoshino-prelude = {path= "../../prelude"}
+yoshino-mysql= {path= "../../mysql"}
+bytes = "1"

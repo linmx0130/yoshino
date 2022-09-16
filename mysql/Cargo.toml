@@ -1,0 +1,16 @@
+[package]
+name = "yoshino-mysql"
+version = "0.1.0"
+edition = "2021"
+
+license = "MIT"
+description = "MySQL adaptor for Yoshino, a simple structural data modeling library"
+homepage = "https://github.com/linmx0130/yoshino"
+readme = "../README.md"
+repository = "https://github.com/linmx0130/yoshino"
+keywords = ["database", "mysql"]
+
+[dependencies]
+mysqlclient-sys = {version = "0.2"}
+libc = "0.2"
+yoshino-core = {path = "../core", version="0.1"}

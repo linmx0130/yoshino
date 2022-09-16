@@ -5,6 +5,8 @@ members = [
     "derive",
     "user",
     "sqlite",
+    "mysql",
     "prelude",
-    "examples/test_sqlite"
+    "examples/test_sqlite",
+    "examples/test_mysql"
 ]
