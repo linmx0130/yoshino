@@ -10,6 +10,7 @@ database, so you only need to focus on your business logic.
 * `core` - Core data types/abstractions
 * `derive` - Marcos for deriving code to implement schema trait
 * `sqlite` - SQLite database adaptor
+* `mysql` - MySQL and MariaDB database adaptor
 * `user` - User identity type
 
 ## Usage
