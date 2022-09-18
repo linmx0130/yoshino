@@ -1,3 +1,4 @@
+use std::marker::PhantomData;
 use std::os::raw::{c_ulong};
 use yoshino_core::db::{DbAdaptor, DbError, DbDataType, DbData};
 use std::ffi::{CString, CStr};
@@ -124,13 +125,26 @@ impl MySQLAdaptor {
                 fields_value_tokens = fields_value_tokens + ", ";
             }
             let (field_name, _) = fields.get(i).unwrap();
-            fields_part = fields_part + &field_name;
+            fields_part = fields_part + field_name;
             fields_value_tokens = fields_value_tokens + "?";
         }
         format!("INSERT INTO {} ({}) VALUES ({});", schema_name, fields_part, fields_value_tokens)
     }
 
+    fn get_query_clause_code(schema_name: &str, fields: &Vec<(String, DbDataType)>) -> String {
+        let mut fields_str = String::new();
+        for i in 0..fields.len() {
+            if i != 0 {
+                fields_str = fields_str + ", ";
+            }
+            let (field_name, _) = fields.get(i).unwrap();
+            fields_str = fields_str + field_name;
+        }
+        format!("SELECT {} FROM {}", fields_str, schema_name)
+    }
+
 }
+
 impl Drop for MySQLAdaptor {
     fn drop(&mut self) {
         unsafe {
@@ -138,6 +152,7 @@ impl Drop for MySQLAdaptor {
         }
     }
 }
+
 impl DbAdaptor for MySQLAdaptor {
     fn create_table_for_schema<T: yoshino_core::types::Schema>(&mut self) -> Result<(), yoshino_core::db::DbError> {
         let create_table_stmt = MySQLAdaptor::get_create_table_stmt_code(&T::get_schema_name(), &T::get_fields());
@@ -191,7 +206,24 @@ impl DbAdaptor for MySQLAdaptor {
     }
 
     fn query_all<T: yoshino_core::types::Schema>(&mut self) -> Result<yoshino_core::db::DbQueryResult<T>, yoshino_core::db::DbError> {
-        todo!()
+        let query_stmt = format!("{};", MySQLAdaptor::get_query_clause_code(&T::get_schema_name(), &T::get_fields()));
+        let stmt_cstring = CString::new(query_stmt.as_str()).unwrap();
+        unsafe {
+            let stmt = mysqlclient_sys::mysql_stmt_init(self.handler);
+            if stmt.is_null() {
+                return Err(DbError(format!("Mysql database error: out of memory.")));
+            }
+            db_stmt_try!(
+                stmt,
+                mysqlclient_sys::mysql_stmt_prepare(stmt, stmt_cstring.as_ptr(), query_stmt.len() as c_ulong)
+            );
+            db_stmt_try!(
+                stmt,
+                mysqlclient_sys::mysql_stmt_execute(stmt)
+            );
+            let internal_iterator = MySQLResultIterator::new(stmt)?;
+            Ok(yoshino_core::db::DbQueryResult {data_iter: Box::new(internal_iterator)})
+        }
     }
 
     fn query_with_cond<T: yoshino_core::types::Schema>(&mut self, cond: yoshino_core::Cond) -> Result<yoshino_core::db::DbQueryResult<T>, yoshino_core::db::DbError> {
@@ -204,5 +236,155 @@ impl DbAdaptor for MySQLAdaptor {
 
     fn update_with_cond<T: yoshino_core::types::Schema>(&mut self, cond:yoshino_core::Cond, record: T) -> Result<(), yoshino_core::db::DbError> {
         todo!()
+    }
+}
+
+struct MySQLResultIterator<T> where T: yoshino_core::Schema {
+    stmt: *mut mysqlclient_sys::st_mysql_stmt,
+    fields: Vec<(String, DbDataType)>,
+    bind_list: Vec<mysqlclient_sys::MYSQL_BIND>,
+    length_list: Vec<u64>,
+    is_null_list: Vec<i8>,
+    phantom: PhantomData<T>
+}
+
+impl<T> MySQLResultIterator<T> where T: yoshino_core::Schema {
+    fn new(stmt: *mut mysqlclient_sys::st_mysql_stmt) -> Result<MySQLResultIterator<T>, DbError>{
+        let fields = T::get_fields();
+        let mut length_list = vec![0u64; fields.len()];
+        let mut is_null_list = vec![0;fields.len()];
+        let mut bind_list: Vec<mysqlclient_sys::MYSQL_BIND> = fields.iter().map(
+            |_| unsafe {
+                std::mem::zeroed::<mysqlclient_sys::MYSQL_BIND>()
+            }
+        ).collect();
+        let length_list_ptr = length_list.as_mut_ptr();
+        let is_null_list_ptr = is_null_list.as_mut_ptr();
+        for i in 0..bind_list.len() {
+            unsafe {
+                bind_list[i].length = length_list_ptr.offset(i as isize);
+                bind_list[i].is_null = is_null_list_ptr.offset(i as isize);
+            }
+        }
+        unsafe{
+            db_stmt_try!(
+                stmt,
+                mysqlclient_sys::mysql_stmt_bind_result(stmt, bind_list.as_mut_ptr())
+            );
+        }
+        Ok(MySQLResultIterator { stmt, fields, bind_list, length_list, is_null_list, phantom: PhantomData })
+    }
+
+    fn clear_binds(&mut self) {
+        let fields_count = self.length_list.len();
+        for i in 0..fields_count {
+            self.length_list[i] = 0;
+            self.bind_list[i].buffer_type = unsafe {std::mem::zeroed()};
+        }
+    }
+}
+
+impl<T> Iterator for MySQLResultIterator<T> where T:yoshino_core::Schema {
+    type Item = T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let status = unsafe {
+            mysqlclient_sys::mysql_stmt_fetch(self.stmt)
+        };
+        if status == (mysqlclient_sys::MYSQL_NO_DATA as i32) || status == 1 {
+            return None
+        }
+        let mut values :Vec<Box<dyn DbData>> = vec![];
+        for i in 0..self.fields.len() {
+            match self.fields[i].1 {
+                yoshino_core::db::DbDataType::Int | yoshino_core::db::DbDataType::RowID =>{
+                    self.bind_list[i].buffer_length = 1;
+                    unsafe {
+                        let mut buffer:i64 = std::mem::zeroed();
+                        self.bind_list[i].buffer = (&mut buffer) as *mut i64 as *mut std::ffi::c_void;
+                        self.bind_list[i].buffer_type = mysqlclient_sys::enum_field_types::MYSQL_TYPE_LONGLONG;
+                        mysqlclient_sys::mysql_stmt_fetch_column(
+                            self.stmt, 
+                            self.bind_list.as_mut_ptr().offset(i as isize),
+                            i as u32, 0);
+                        values.push(Box::new(buffer));
+                    }
+                }
+                yoshino_core::db::DbDataType::NullableInt =>{
+                    if self.is_null_list[i] != 0 {
+                        values.push(Box::<Option<i64>>::new(None));
+                    } else {
+                        self.bind_list[i].buffer_length = 1;
+                        unsafe {
+                            let mut buffer:i64 = std::mem::zeroed();
+                            self.bind_list[i].buffer = (&mut buffer) as *mut i64 as *mut std::ffi::c_void;
+                            self.bind_list[i].buffer_type = mysqlclient_sys::enum_field_types::MYSQL_TYPE_LONGLONG;
+                            mysqlclient_sys::mysql_stmt_fetch_column(
+                                self.stmt, 
+                                self.bind_list.as_mut_ptr().offset(i as isize),
+                                i as u32, 0);
+                            values.push(Box::<Option<i64>>::new(Some(buffer)));
+                        }
+                    }
+                }
+                yoshino_core::db::DbDataType::Text => {
+                    if self.length_list[i] == 0 {
+                        values.push(Box::new("".to_string()));
+                    } else {
+                        let mut buffer: Vec<u8> = vec![0u8 ;self.length_list[i] as usize];
+                        self.bind_list[i].buffer = buffer.as_mut_ptr() as *mut std::ffi::c_void;
+                        self.bind_list[i].buffer_type = mysqlclient_sys::enum_field_types::MYSQL_TYPE_STRING;
+                        self.bind_list[i].buffer_length = self.length_list[i];
+                        unsafe {
+                            mysqlclient_sys::mysql_stmt_fetch_column(
+                                self.stmt, 
+                                self.bind_list.as_mut_ptr().offset(i as isize),
+                                i as u32, 0);
+                        }
+                        values.push(Box::new(String::from_utf8(buffer).unwrap()));
+                    }
+                }
+                yoshino_core::db::DbDataType::NullableText => {
+                    if self.is_null_list[i] != 0 {
+                        values.push(Box::<Option<String>>::new(None));
+                    } else {
+                        let mut buffer: Vec<u8> = vec![0u8 ;self.length_list[i] as usize];
+                        self.bind_list[i].buffer = buffer.as_mut_ptr() as *mut std::ffi::c_void;
+                        self.bind_list[i].buffer_type = mysqlclient_sys::enum_field_types::MYSQL_TYPE_STRING;
+                        self.bind_list[i].buffer_length = self.length_list[i];
+                        unsafe {
+                            mysqlclient_sys::mysql_stmt_fetch_column(
+                                self.stmt, 
+                                self.bind_list.as_mut_ptr().offset(i as isize),
+                                i as u32, 0);
+                        }
+                        values.push(Box::new(Some(String::from_utf8(buffer).unwrap())));
+                    }
+                }
+                yoshino_core::db::DbDataType::Float => {
+                    let mut buffer = 0f64;
+                    self.bind_list[i].buffer = (&mut buffer) as *mut f64 as *mut std::ffi::c_void;
+                    self.bind_list[i].buffer_type = mysqlclient_sys::enum_field_types::MYSQL_TYPE_DOUBLE;
+                    self.bind_list[i].buffer_length = self.length_list[i];
+                    unsafe {
+                        mysqlclient_sys::mysql_stmt_fetch_column(
+                            self.stmt, 
+                            self.bind_list.as_mut_ptr().offset(i as isize),
+                            i as u32, 0);
+                    }
+                    values.push(Box::new(buffer));
+                }
+            }    
+        }
+        self.clear_binds();
+        Some(T::create_with_values(values))
+    }
+}
+
+impl<T> Drop for MySQLResultIterator<T> where T:yoshino_core::Schema{
+    fn drop(&mut self) {
+        unsafe{
+            mysqlclient_sys::mysql_stmt_close(self.stmt);
+        }
     }
 }
