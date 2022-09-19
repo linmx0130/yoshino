@@ -1,6 +1,7 @@
 use std::marker::PhantomData;
 use std::os::raw::{c_ulong};
 use yoshino_core::db::{DbAdaptor, DbError, DbDataType, DbData};
+use yoshino_core::Cond;
 use std::ffi::{CString, CStr};
 use std::ptr;
 
@@ -22,7 +23,7 @@ pub struct MySQLAdaptor{
 
 /// The container to hold a MySQL bind list with the reference to original data.
 struct MySQLBindList<'a> {
-    // keep this as a phanton type for track data lifetime
+    // keep this as a phantom type for track data lifetime
     _data: &'a Vec<Box<dyn DbData>>,
     // length list will be deallocated after the bind is finised
     length_list: Vec<u64>,
@@ -143,6 +144,44 @@ impl MySQLAdaptor {
         format!("SELECT {} FROM {}", fields_str, schema_name)
     }
 
+    fn get_cond_expression_code_and_data(cond: Cond) -> (String, Vec<Box<dyn DbData>>) {
+        match cond {
+            Cond::IntegerEqualTo { field_name, value} => 
+                (format!("{} = ?", field_name), vec![Box::new(value)]),
+            Cond::IntegerNotEqualTo { field_name, value} =>
+                (format!("{} <> ?", field_name), vec![Box::new(value)]),
+            Cond::IntegerGreaterThan { field_name, value} =>
+                (format!("{} > ?", field_name), vec![Box::new(value)]),
+            Cond::IntegerGreaterThanOrEqualTo { field_name, value}=>
+                (format!("{} >= ?", field_name), vec![Box::new(value)]),
+            Cond::IntegerLessThan { field_name, value}=>
+                (format!("{} < ?", field_name), vec![Box::new(value)]),
+            Cond::IntegerLessThanOrEqualTo { field_name, value } =>
+                (format!("{} <= ?", field_name), vec![Box::new(value)]),
+            Cond::IsNotNull { field_name } => 
+                (format!("{} IS NOT NULL", field_name), vec![]),
+            Cond::IsNull { field_name } => 
+                (format!("{} IS NULL", field_name), vec![]),
+            Cond::TextEqualTo { field_name, value } => 
+                (format!("{} = ?", field_name), vec![Box::new(value)]),
+            Cond::Not { cond } => {
+                let (code, values) = MySQLAdaptor::get_cond_expression_code_and_data(*cond);
+                (format!("NOT ({})", code), values)
+            }
+            Cond::And { left, right } => {
+                let (left_code, mut left_values) = MySQLAdaptor::get_cond_expression_code_and_data(*left);
+                let (right_code, right_values) = MySQLAdaptor::get_cond_expression_code_and_data(*right);
+                left_values.extend(right_values.into_iter());
+                (format!("({}) AND ({})", left_code, right_code), left_values)
+            }
+            Cond::Or { left, right } => {
+                let (left_code, mut left_values) = MySQLAdaptor::get_cond_expression_code_and_data(*left);
+                let (right_code, right_values) = MySQLAdaptor::get_cond_expression_code_and_data(*right);
+                left_values.extend(right_values.into_iter());
+                (format!("({}) OR ({})", left_code, right_code), left_values)
+            }
+        }
+    }
 }
 
 impl Drop for MySQLAdaptor {
@@ -227,7 +266,34 @@ impl DbAdaptor for MySQLAdaptor {
     }
 
     fn query_with_cond<T: yoshino_core::types::Schema>(&mut self, cond: yoshino_core::Cond) -> Result<yoshino_core::db::DbQueryResult<T>, yoshino_core::db::DbError> {
-        todo!()
+        let (cond_clause, cond_values) = MySQLAdaptor::get_cond_expression_code_and_data(cond);
+        let query_stmt = format!("{} WHERE {};", 
+            MySQLAdaptor::get_query_clause_code(&T::get_schema_name(), &T::get_fields()),
+            cond_clause
+        );
+        let stmt_cstring = CString::new(query_stmt.as_str()).unwrap();
+        unsafe {
+            let stmt = mysqlclient_sys::mysql_stmt_init(self.handler);
+            if stmt.is_null() {
+                return Err(DbError(format!("Mysql database error: out of memory.")));
+            }
+            db_stmt_try!(
+                stmt,
+                mysqlclient_sys::mysql_stmt_prepare(stmt, stmt_cstring.as_ptr(), query_stmt.len() as c_ulong)
+            );
+            let mut bind_list = MySQLBindList::from_boxed_db_data_list(&cond_values);
+            let bind_array = bind_list.binds.as_mut_ptr();
+            db_stmt_try!(
+                stmt,
+                mysqlclient_sys::mysql_stmt_bind_param(stmt, bind_array)
+            );
+            db_stmt_try!(
+                stmt,
+                mysqlclient_sys::mysql_stmt_execute(stmt)
+            );
+            let internal_iterator = MySQLResultIterator::new(stmt)?;
+            Ok(yoshino_core::db::DbQueryResult {data_iter: Box::new(internal_iterator)})
+        }
     }
 
     fn delete_with_cond<T: yoshino_core::types::Schema>(&mut self, cond: yoshino_core::Cond) -> Result<(), yoshino_core::db::DbError> {

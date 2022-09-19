@@ -13,8 +13,8 @@ fn main() {
     adaptor.create_table_for_schema::<Counter>().unwrap();
     let record = Counter {
         pid: RowID::NEW,
-        name: Some("hello world!".to_string()),
-        stock: Some(12)
+        name: Some("world".to_string()),
+        stock: Some(7)
     };
     adaptor.insert_record(record).unwrap();
     
