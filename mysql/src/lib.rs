@@ -144,6 +144,18 @@ impl MySQLAdaptor {
         format!("SELECT {} FROM {}", fields_str, schema_name)
     }
 
+    fn get_update_clause_code(schema_name: &str, fields: &Vec<(String, DbDataType)>) -> String {
+        let mut fields_str = String::new();
+        for i in 0..fields.len() {
+            if i != 0 {
+                fields_str = fields_str + ", ";
+            }
+            let (field_name, _) = fields.get(i).unwrap();
+            fields_str = fields_str + field_name + "=?";
+        }
+        format!("UPDATE {} SET {}", schema_name, fields_str)
+    }
+
     fn get_cond_expression_code_and_data(cond: Cond) -> (String, Vec<Box<dyn DbData>>) {
         match cond {
             Cond::IntegerEqualTo { field_name, value} => 
@@ -297,11 +309,61 @@ impl DbAdaptor for MySQLAdaptor {
     }
 
     fn delete_with_cond<T: yoshino_core::types::Schema>(&mut self, cond: yoshino_core::Cond) -> Result<(), yoshino_core::db::DbError> {
-        todo!()
+        let (cond_clause, cond_values) = MySQLAdaptor::get_cond_expression_code_and_data(cond);
+        let delete_stmt = format!("DELETE FROM {} WHERE {};", &T::get_schema_name(), cond_clause);
+        let stmt_cstring = CString::new(delete_stmt.as_str()).unwrap();
+        unsafe {
+            let stmt = mysqlclient_sys::mysql_stmt_init(self.handler);
+            if stmt.is_null() {
+                return Err(DbError(format!("Mysql database error: out of memory.")));
+            }
+            db_stmt_try!(
+                stmt,
+                mysqlclient_sys::mysql_stmt_prepare(stmt, stmt_cstring.as_ptr(), delete_stmt.len() as c_ulong)
+            );
+            let mut bind_list = MySQLBindList::from_boxed_db_data_list(&cond_values);
+            let bind_array = bind_list.binds.as_mut_ptr();
+            db_stmt_try!(
+                stmt,
+                mysqlclient_sys::mysql_stmt_bind_param(stmt, bind_array)
+            );
+            db_stmt_try!(
+                stmt,
+                mysqlclient_sys::mysql_stmt_execute(stmt)
+            );
+        }
+        Ok(())
+
     }
 
     fn update_with_cond<T: yoshino_core::types::Schema>(&mut self, cond:yoshino_core::Cond, record: T) -> Result<(), yoshino_core::db::DbError> {
-        todo!()
+        let (cond_clause, cond_values) = MySQLAdaptor::get_cond_expression_code_and_data(cond);
+        let update_clause = MySQLAdaptor::get_update_clause_code(&T::get_schema_name(), &T::get_fields());
+        let update_stmt = format!("{} WHERE {};", update_clause, cond_clause);
+        let stmt_cstring= CString::new(update_stmt.as_str()).unwrap();
+        let mut values = record.get_values();
+        values.extend(cond_values);
+        unsafe {
+            let stmt = mysqlclient_sys::mysql_stmt_init(self.handler);
+            if stmt.is_null() {
+                return Err(DbError(format!("Mysql database error: out of memory.")));
+            }
+            db_stmt_try!(
+                stmt,
+                mysqlclient_sys::mysql_stmt_prepare(stmt, stmt_cstring.as_ptr(), update_stmt.len() as c_ulong)
+            );
+            let mut bind_list = MySQLBindList::from_boxed_db_data_list(&values);
+            let bind_array = bind_list.binds.as_mut_ptr();
+            db_stmt_try!(
+                stmt,
+                mysqlclient_sys::mysql_stmt_bind_param(stmt, bind_array)
+            );
+            db_stmt_try!(
+                stmt,
+                mysqlclient_sys::mysql_stmt_execute(stmt)
+            );
+        }
+        Ok(())
     }
 }
 
