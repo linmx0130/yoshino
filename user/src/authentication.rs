@@ -1,21 +1,20 @@
 /// Internal code for authenticate a user.
-
-use bytes::{Bytes, BytesMut, BufMut, Buf};
-use sha2::{Sha256, Digest};
-use yoshino_core::{TextField, db::DbData};
+use bytes::{Buf, BufMut, Bytes, BytesMut};
+use sha2::{Digest, Sha256};
+use yoshino_core::{db::DbData, TextField};
 
 /// To indicate how the useer credential is hashed
 #[derive(Clone, Debug)]
 pub enum UserCredentialHashType {
     /// SHA256 hash with a salt
-    Sha256WithSalt(Bytes)
-} 
+    Sha256WithSalt(Bytes),
+}
 
-/// User credential type 
+/// User credential type
 #[derive(Clone, Debug)]
 pub struct UserCredential {
     data: Bytes,
-    hash_type: UserCredentialHashType
+    hash_type: UserCredentialHashType,
 }
 
 impl UserCredential {
@@ -34,7 +33,7 @@ impl UserCredential {
     }
 
     /// Create a user credential with the plain text and the hash type.
-    pub fn new(credential_plain: Bytes, hash_type: UserCredentialHashType)-> UserCredential {
+    pub fn new(credential_plain: Bytes, hash_type: UserCredentialHashType) -> UserCredential {
         let data = match &hash_type {
             UserCredentialHashType::Sha256WithSalt(salt) => {
                 let mut hasher = Sha256::new();
@@ -42,9 +41,9 @@ impl UserCredential {
                 hasher.update(salt.as_ref());
                 let result = hasher.finalize();
                 Bytes::from(result.to_vec())
-            }            
+            }
         };
-        UserCredential { data, hash_type}
+        UserCredential { data, hash_type }
     }
 }
 
@@ -80,7 +79,7 @@ impl TextField for UserCredential {
                 }
                 UserCredential {
                     data: Bytes::from(data),
-                    hash_type: UserCredentialHashType::Sha256WithSalt(Bytes::from(salt))
+                    hash_type: UserCredentialHashType::Sha256WithSalt(Bytes::from(salt)),
                 }
             }
             _ => {
@@ -90,19 +89,18 @@ impl TextField for UserCredential {
     }
 }
 
-
 #[cfg(test)]
-mod tests{
+mod tests {
     use super::*;
     use bytes::Bytes;
     #[test]
     fn test_sha256_user_credential_validation() {
         let plain_text = "this_is_the_pain_text";
         let ground_truth = UserCredential::new(
-            Bytes::from(plain_text), 
-            UserCredentialHashType::Sha256WithSalt(Bytes::from("salt"))
+            Bytes::from(plain_text),
+            UserCredentialHashType::Sha256WithSalt(Bytes::from("salt")),
         );
-        
+
         assert!(ground_truth.validate_credential(Bytes::from(plain_text)));
         assert!(!ground_truth.validate_credential(Bytes::from("this is not the plain text")))
     }
@@ -111,12 +109,12 @@ mod tests{
     fn test_sha256_user_base64_serialization() {
         let plain_text = "this_is_the_pain_text";
         let ground_truth = UserCredential::new(
-            Bytes::from(plain_text), 
-            UserCredentialHashType::Sha256WithSalt(Bytes::from("salt"))
+            Bytes::from(plain_text),
+            UserCredentialHashType::Sha256WithSalt(Bytes::from("salt")),
         );
-        
+
         let data = ground_truth.to_db_data();
-        let boxed_data : Box<(dyn DbData + 'static)>= Box::new(data);
+        let boxed_data: Box<(dyn DbData + 'static)> = Box::new(data);
         let new_user = UserCredential::from_db_data(&boxed_data);
         assert!(new_user.validate_credential(Bytes::from(plain_text)));
     }

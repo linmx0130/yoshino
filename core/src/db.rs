@@ -1,18 +1,18 @@
 //! Database related core stuff
-use std::ptr;
-use crate::{RowID, Schema};
 use crate::query_cond::Cond;
+use crate::{RowID, Schema};
+use std::ptr;
 
 /// Database error
 #[derive(Debug, Clone)]
 pub struct DbError(pub String);
 
 /// Query result from the data base. It's a wrapper of DB result iterator.
-pub struct DbQueryResult<T:Schema> {
-    pub data_iter: Box<dyn Iterator<Item=T>>
+pub struct DbQueryResult<T: Schema> {
+    pub data_iter: Box<dyn Iterator<Item = T>>,
 }
 
-impl<T:Schema> Iterator for DbQueryResult<T>{
+impl<T: Schema> Iterator for DbQueryResult<T> {
     type Item = T;
     fn next(&mut self) -> Option<Self::Item> {
         self.data_iter.next()
@@ -20,7 +20,7 @@ impl<T:Schema> Iterator for DbQueryResult<T>{
 }
 
 /// Yoshino database adaptor trait.
-/// 
+///
 /// Every database adaptor implementation should implement this trait.
 pub trait DbAdaptor {
     /// Create data table in the database for a Yoshino schema.
@@ -30,11 +30,18 @@ pub trait DbAdaptor {
     /// Query all records of the schema.
     fn query_all<T: crate::types::Schema>(&mut self) -> Result<DbQueryResult<T>, DbError>;
     /// Query records of the schema that matches the condition.
-    fn query_with_cond<T: crate::types::Schema>(&mut self, cond: Cond) -> Result<DbQueryResult<T>, DbError>;
+    fn query_with_cond<T: crate::types::Schema>(
+        &mut self,
+        cond: Cond,
+    ) -> Result<DbQueryResult<T>, DbError>;
     /// Delete records of the schema that matches the condition.
     fn delete_with_cond<T: crate::types::Schema>(&mut self, cond: Cond) -> Result<(), DbError>;
     /// Update records of the schema that matches the condition.
-    fn update_with_cond<T: crate::types::Schema>(&mut self, cond:Cond, record: T) -> Result<(), DbError>;
+    fn update_with_cond<T: crate::types::Schema>(
+        &mut self,
+        cond: Cond,
+        record: T,
+    ) -> Result<(), DbError>;
 }
 
 /// Database data type supported by Yoshino.
@@ -44,7 +51,7 @@ pub enum DbDataType {
     Text,
     Int,
     Float,
-    RowID 
+    RowID,
 }
 
 /// The mark trait to indicate that this type can be directly obtained from data base.
@@ -56,7 +63,9 @@ pub trait DbData {
     /// data length in bytes
     fn db_data_len(&self) -> usize;
     // restore data from a boxed db data object
-    fn from_boxed_db_data(src: &Box<dyn DbData>) -> Self where Self: Sized;
+    fn from_boxed_db_data(src: &Box<dyn DbData>) -> Self
+    where
+        Self: Sized;
 }
 
 impl DbData for String {
@@ -98,9 +107,7 @@ impl DbData for i64 {
     }
 
     fn from_boxed_db_data(src: &Box<dyn DbData>) -> i64 {
-        unsafe {
-            *(src.db_data_ptr() as *const i64)
-        }
+        unsafe { *(src.db_data_ptr() as *const i64) }
     }
 }
 
@@ -112,10 +119,10 @@ impl DbData for Option<i64> {
     fn db_data_ptr(&self) -> *const core::ffi::c_void {
         match self {
             None => ptr::null(),
-            Some(v) => (v as *const i64 as *const core::ffi::c_void)
+            Some(v) => (v as *const i64 as *const core::ffi::c_void),
         }
     }
-    
+
     fn db_data_len(&self) -> usize {
         8
     }
@@ -124,9 +131,7 @@ impl DbData for Option<i64> {
         if src.db_data_ptr().is_null() {
             None
         } else {
-            Some(unsafe {
-                *(src.db_data_ptr() as *const i64)
-            })
+            Some(unsafe { *(src.db_data_ptr() as *const i64) })
         }
     }
 }
@@ -139,14 +144,14 @@ impl DbData for Option<String> {
     fn db_data_ptr(&self) -> *const core::ffi::c_void {
         match self {
             None => ptr::null(),
-            Some(s) => s.as_ptr() as *const core::ffi::c_void
+            Some(s) => s.as_ptr() as *const core::ffi::c_void,
         }
     }
 
     fn db_data_len(&self) -> usize {
         match self {
             None => 0,
-            Some(s) => s.len()
+            Some(s) => s.len(),
         }
     }
 
@@ -171,20 +176,18 @@ impl DbData for crate::types::RowID {
     fn db_data_ptr(&self) -> *const core::ffi::c_void {
         match self {
             RowID::NEW => ptr::null(),
-            RowID::ID(v) => v as *const i64 as *const core::ffi::c_void
+            RowID::ID(v) => v as *const i64 as *const core::ffi::c_void,
         }
     }
     fn db_data_len(&self) -> usize {
         8
     }
-    
+
     fn from_boxed_db_data(src: &Box<dyn DbData>) -> RowID {
         if src.db_data_ptr().is_null() {
             RowID::NEW
         } else {
-            unsafe{
-                RowID::ID(*(src.db_data_ptr() as *const i64))
-            }   
+            unsafe { RowID::ID(*(src.db_data_ptr() as *const i64)) }
         }
     }
 }
@@ -199,9 +202,10 @@ impl DbData for f64 {
     fn db_data_len(&self) -> usize {
         8
     }
-    fn from_boxed_db_data(src: &Box<dyn DbData>) -> Self where Self: Sized {
-        unsafe {
-            *(src.db_data_ptr() as *const f64)    
-        }
+    fn from_boxed_db_data(src: &Box<dyn DbData>) -> Self
+    where
+        Self: Sized,
+    {
+        unsafe { *(src.db_data_ptr() as *const f64) }
     }
 }

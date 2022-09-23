@@ -9,15 +9,16 @@ struct Counter {
 }
 
 fn main() {
-    let mut adaptor = MySQLAdaptor::connect("localhost", "mysql_user", "mysql_passwd", "test_db").unwrap();
+    let mut adaptor =
+        MySQLAdaptor::connect("localhost", "mysql_user", "mysql_passwd", "test_db").unwrap();
     adaptor.create_table_for_schema::<Counter>().unwrap();
     let record = Counter {
         pid: RowID::NEW,
         name: Some("world".to_string()),
-        stock: Some(7)
+        stock: Some(7),
     };
     adaptor.insert_record(record).unwrap();
-    
+
     for item in adaptor.query_all::<Counter>().unwrap() {
         println!("{:?}", item)
     }
