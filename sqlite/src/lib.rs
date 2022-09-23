@@ -286,6 +286,8 @@ impl<T: Schema> Drop for SQLiteRowIterator<T> {
 }
 
 impl DbAdaptor for SQLiteAdaptor {
+    type Iterator<T: Schema> = SQLiteRowIterator<T>;
+
     fn create_table_for_schema<T: Schema>(&mut self) -> Result<(), DbError> {
         let schema_name = T::get_schema_name();
         let fields = T::get_fields();
@@ -333,7 +335,7 @@ impl DbAdaptor for SQLiteAdaptor {
         Ok(())
     }
 
-    fn query_all<T: Schema>(&mut self) -> Result<DbQueryResult<T>, DbError> {
+    fn query_all<T: Schema>(&mut self) -> Result<SQLiteRowIterator<T>, DbError> {
         let schema_name = T::get_schema_name();
         let fields = T::get_fields();
         let query_stmt = SQLiteAdaptor::get_query_clause(&schema_name, &fields) + ";";
@@ -350,11 +352,10 @@ impl DbAdaptor for SQLiteAdaptor {
                 &mut tail
             ));
         };
-        let iter: Box<SQLiteRowIterator<T>> = Box::new(SQLiteRowIterator {
+        Ok(SQLiteRowIterator {
             stmt,
             phantom: PhantomData,
-        });
-        Ok(DbQueryResult { data_iter: iter })
+        })
     }
 
     fn query_with_cond<T: Schema>(

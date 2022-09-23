@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use std::os::raw::c_ulong;
 use std::ptr;
 use yoshino_core::db::{DbAdaptor, DbData, DbDataType, DbError};
-use yoshino_core::Cond;
+use yoshino_core::{Cond, Schema};
 
 macro_rules! db_stmt_try {
     ($stmt: ident, $e: expr) => {{
@@ -232,6 +232,7 @@ impl Drop for MySQLAdaptor {
 }
 
 impl DbAdaptor for MySQLAdaptor {
+    type Iterator<T: Schema> = MySQLResultIterator<T>;
     fn create_table_for_schema<T: yoshino_core::types::Schema>(
         &mut self,
     ) -> Result<(), yoshino_core::db::DbError> {
@@ -292,7 +293,7 @@ impl DbAdaptor for MySQLAdaptor {
 
     fn query_all<T: yoshino_core::types::Schema>(
         &mut self,
-    ) -> Result<yoshino_core::db::DbQueryResult<T>, yoshino_core::db::DbError> {
+    ) -> Result<MySQLResultIterator<T>, DbError> {
         let query_stmt = format!(
             "{};",
             MySQLAdaptor::get_query_clause_code(&T::get_schema_name(), &T::get_fields())
@@ -312,10 +313,7 @@ impl DbAdaptor for MySQLAdaptor {
                 )
             );
             db_stmt_try!(stmt, mysqlclient_sys::mysql_stmt_execute(stmt));
-            let internal_iterator = MySQLResultIterator::new(stmt)?;
-            Ok(yoshino_core::db::DbQueryResult {
-                data_iter: Box::new(internal_iterator),
-            })
+            MySQLResultIterator::new(stmt)
         }
     }
 
@@ -429,7 +427,8 @@ impl DbAdaptor for MySQLAdaptor {
     }
 }
 
-struct MySQLResultIterator<T>
+/// Database result iterator for MySQL.
+pub struct MySQLResultIterator<T>
 where
     T: yoshino_core::Schema,
 {

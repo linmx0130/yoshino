@@ -23,12 +23,13 @@ impl<T: Schema> Iterator for DbQueryResult<T> {
 ///
 /// Every database adaptor implementation should implement this trait.
 pub trait DbAdaptor {
+    type Iterator<T: crate::types::Schema>: Iterator<Item = T>;
     /// Create data table in the database for a Yoshino schema.
     fn create_table_for_schema<T: crate::types::Schema>(&mut self) -> Result<(), DbError>;
     /// Insert a record to the database.
     fn insert_record<T: crate::types::Schema>(&mut self, record: T) -> Result<(), DbError>;
     /// Query all records of the schema.
-    fn query_all<T: crate::types::Schema>(&mut self) -> Result<DbQueryResult<T>, DbError>;
+    fn query_all<T: crate::types::Schema>(&mut self) -> Result<Self::Iterator<T>, DbError>;
     /// Query records of the schema that matches the condition.
     fn query_with_cond<T: crate::types::Schema>(
         &mut self,
