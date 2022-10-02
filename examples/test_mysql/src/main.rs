@@ -6,6 +6,7 @@ struct Counter {
     pub pid: RowID,
     pub name: Option<String>,
     pub stock: Option<i64>,
+    pub bb: Vec<u8>
 }
 
 fn main() {
@@ -14,7 +15,8 @@ fn main() {
     let record = Counter {
         pid: RowID::NEW,
         name: Some("world".to_string()),
-        stock: Some(7)
+        stock: Some(7),
+        bb: vec![1u8, 9u8, 8u8, 4u8]
     };
     adaptor.insert_record(record).unwrap();
     

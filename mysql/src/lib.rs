@@ -50,7 +50,8 @@ impl<'a> MySQLBindList<'a> {
                         mysqlclient_sys::enum_field_types::MYSQL_TYPE_STRING,
                     yoshino_core::db::DbDataType::Float =>
                         mysqlclient_sys::enum_field_types::MYSQL_TYPE_DOUBLE,
-                    yoshino_core::db::DbDataType::Binary => todo!()
+                    yoshino_core::db::DbDataType::Binary =>
+                        mysqlclient_sys::enum_field_types::MYSQL_TYPE_BLOB
                 };
                 bind.is_null = if data_item.db_data_ptr().is_null() {
                     &mut return_value.is_null_placeholder
@@ -112,7 +113,7 @@ impl MySQLAdaptor {
                 DbDataType::NullableText => "TEXT",
                 DbDataType::Float => "DOUBLE",
                 DbDataType::RowID => "BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY",
-                DbDataType::Binary => todo!()
+                DbDataType::Binary => "BLOB NOt NULL",
             }
         }
         s = s + ");";
@@ -504,7 +505,23 @@ impl<T> Iterator for MySQLResultIterator<T> where T:yoshino_core::Schema {
                     }
                     values.push(Box::new(buffer));
                 }
-                yoshino_core::db::DbDataType::Binary => todo!()
+                yoshino_core::db::DbDataType::Binary => {
+                    if self.length_list[i] == 0 {
+                        values.push(Box::<Vec<u8>>::new(vec![]));
+                    } {
+                        let mut buffer: Vec<u8> = vec![0u8 ;self.length_list[i] as usize];
+                        self.bind_list[i].buffer = buffer.as_mut_ptr() as *mut std::ffi::c_void;
+                        self.bind_list[i].buffer_type = mysqlclient_sys::enum_field_types::MYSQL_TYPE_BLOB;
+                        self.bind_list[i].buffer_length = self.length_list[i];
+                        unsafe {
+                            mysqlclient_sys::mysql_stmt_fetch_column(
+                                self.stmt,
+                                self.bind_list.as_mut_ptr().offset(i as isize),
+                                i as u32, 0);
+                        }
+                        values.push(Box::new(buffer));
+                    }
+                }
             }    
         }
         self.clear_binds();
