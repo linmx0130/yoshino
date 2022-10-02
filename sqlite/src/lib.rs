@@ -54,7 +54,8 @@ impl SQLiteAdaptor {
                 DbDataType::Text => "TEXT NOT NULL",
                 DbDataType::NullableText => "TEXT",
                 DbDataType::Float => "REAL",
-                DbDataType::RowID => "INTEGER PRIMARY KEY"
+                DbDataType::RowID => "INTEGER PRIMARY KEY",
+                DbDataType::Binary => "BLOB NOT NULL"
             }
         }
         s = s + ");";
@@ -191,6 +192,11 @@ impl SQLiteAdaptor {
                         let data_len = db_data_box.db_data_len();
                         libsqlite3_sys::sqlite3_bind_text(stmt, i, data_ptr, data_len as i32, libsqlite3_sys::SQLITE_TRANSIENT());
                     }
+                    yoshino_core::db::DbDataType::Binary => {
+                        let data_ptr = db_data_box.db_data_ptr();
+                        let data_len = db_data_box.db_data_len();
+                        libsqlite3_sys::sqlite3_bind_blob(stmt, i, data_ptr, data_len as i32, libsqlite3_sys::SQLITE_TRANSIENT());
+                    }
                 }
             }
         }
@@ -258,16 +264,33 @@ impl<T: Schema> Iterator for SQLiteRowIterator<T> {
                         DbDataType::NullableText| DbDataType::Text => {
                             let v = unsafe { 
                                 let str_ptr = libsqlite3_sys::sqlite3_column_text(self.stmt, i as i32) as *const c_char;
-                                let str_len = libc::strlen(str_ptr);
-                                let str_copy = libc::malloc(str_len) as *mut i8;
-                                libc::strncpy(str_copy, str_ptr, str_len);
-                                String::from_raw_parts(str_copy as *mut u8, str_len, str_len)
+                                let str_len = libsqlite3_sys::sqlite3_column_bytes(self.stmt, i as i32) as usize;
+                                let mut buffer = Vec::<u8>::with_capacity(str_len);
+                                for i in 0..str_len {
+                                    let d = *(str_ptr.offset(i as isize)) as u8;
+                                    buffer.push(d);
+                                }
+                                String::from_utf8(buffer).unwrap()
+                            };
+                            values.push(Box::new(v));
+                        }
+                        DbDataType::Binary => {
+                            let v = unsafe {
+                                let ptr = libsqlite3_sys::sqlite3_column_blob(self.stmt, i as i32) as *const u8;
+                                let len = libsqlite3_sys::sqlite3_column_bytes(self.stmt, i as i32) as usize; 
+                                let mut buffer = Vec::<u8>::new();
+                                for i in 0..len {
+                                    let d = *(ptr.offset(i as isize));
+                                    buffer.push(d);
+                                }
+                                buffer
                             };
                             values.push(Box::new(v));
                         }
                     };
                 }
-                Some(T::create_with_values(values))
+                let d = T::create_with_values(values);
+                Some(d)
             }
             _ => None
         }

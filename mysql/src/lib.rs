@@ -50,6 +50,7 @@ impl<'a> MySQLBindList<'a> {
                         mysqlclient_sys::enum_field_types::MYSQL_TYPE_STRING,
                     yoshino_core::db::DbDataType::Float =>
                         mysqlclient_sys::enum_field_types::MYSQL_TYPE_DOUBLE,
+                    yoshino_core::db::DbDataType::Binary => todo!()
                 };
                 bind.is_null = if data_item.db_data_ptr().is_null() {
                     &mut return_value.is_null_placeholder
@@ -110,7 +111,8 @@ impl MySQLAdaptor {
                 DbDataType::Text => "TEXT NOT NULL",
                 DbDataType::NullableText => "TEXT",
                 DbDataType::Float => "DOUBLE",
-                DbDataType::RowID => "BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY"
+                DbDataType::RowID => "BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY",
+                DbDataType::Binary => todo!()
             }
         }
         s = s + ");";
@@ -502,6 +504,7 @@ impl<T> Iterator for MySQLResultIterator<T> where T:yoshino_core::Schema {
                     }
                     values.push(Box::new(buffer));
                 }
+                yoshino_core::db::DbDataType::Binary => todo!()
             }    
         }
         self.clear_binds();

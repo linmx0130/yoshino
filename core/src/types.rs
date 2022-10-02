@@ -77,6 +77,18 @@ pub trait FloatField: Sized {
     }
 }
 
+/// A binary large object field for storing raw data.
+pub trait BinaryField: Sized {
+    /// Create an instance from a boxed DbData trait object.
+    fn from_db_data(data: &Box<dyn DbData>) -> Self;
+    /// Create the Vec<u8> to be used by the Yoshino.
+    fn to_db_data(&self)-> Vec<u8>;
+    /// The `DbDataType` of this field. For all `BinaryField` objects, it's `DbDataType::Binary`.
+    fn db_field_type() -> DbDataType {
+        DbDataType::Binary
+    }
+}
+
 impl TextField for String {
     fn from_db_data(data: &Box<dyn DbData>) -> String {
         <String as DbData>::from_boxed_db_data(data)
@@ -122,6 +134,15 @@ impl FloatField for f64 {
     }
     fn to_db_data(&self)-> f64 {
         *self
+    }
+}
+
+impl BinaryField for Vec<u8> {
+    fn from_db_data(data: &Box<dyn DbData>) -> Self {
+        <Vec<u8> as DbData>::from_boxed_db_data(data)
+    }
+    fn to_db_data(&self)-> Vec<u8> {
+        self.clone()
     }
 }
 

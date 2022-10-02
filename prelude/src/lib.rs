@@ -34,6 +34,6 @@
 pub use yoshino_core;
 pub use yoshino_core::Cond;
 pub use yoshino_core::Schema;
-pub use yoshino_core::{RowID, NullableIntegerField, NullableTextField, IntegerField, TextField, FloatField};
+pub use yoshino_core::{RowID, NullableIntegerField, NullableTextField, IntegerField, TextField, FloatField, BinaryField};
 pub use yoshino_core::db::{DbAdaptor, DbData, DbError, DbQueryResult, DbDataType};
 pub use yoshino_derive::Schema;

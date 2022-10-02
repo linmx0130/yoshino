@@ -44,6 +44,7 @@ pub enum DbDataType {
     Text,
     Int,
     Float,
+    Binary,
     RowID 
 }
 
@@ -112,7 +113,7 @@ impl DbData for Option<i64> {
     fn db_data_ptr(&self) -> *const core::ffi::c_void {
         match self {
             None => ptr::null(),
-            Some(v) => (v as *const i64 as *const core::ffi::c_void)
+            Some(v) => v as *const i64 as *const core::ffi::c_void
         }
     }
     
@@ -203,5 +204,31 @@ impl DbData for f64 {
         unsafe {
             *(src.db_data_ptr() as *const f64)    
         }
+    }
+}
+
+impl DbData for Vec<u8> {
+    fn db_data_type(&self) -> DbDataType {
+        DbDataType::Binary
+    }
+
+    fn db_data_ptr(&self) -> *const core::ffi::c_void {
+        self.as_ptr() as *mut u8 as *const core::ffi::c_void
+    }
+
+    fn db_data_len(&self) -> usize {
+        self.len()
+    }
+
+    fn from_boxed_db_data(src: &Box<dyn DbData>) -> Vec<u8> {
+        let len = src.db_data_len();
+        let ptr = src.db_data_ptr() as *const u8;
+        let mut buf = Vec::with_capacity(len);
+        for i in 0..len {
+            unsafe{
+                buf.push(*(ptr.offset(i as isize)))
+            }
+        }
+        buf
     }
 }
