@@ -45,6 +45,7 @@ pub enum DbDataType {
     Int,
     Float,
     Binary,
+    NullableBinary,
     RowID 
 }
 
@@ -230,5 +231,33 @@ impl DbData for Vec<u8> {
             }
         }
         buf
+    }
+}
+
+impl DbData for Option<Vec<u8>> {
+    fn db_data_type(&self) -> DbDataType {
+        DbDataType::NullableBinary
+    }
+
+    fn db_data_ptr(&self) -> *const core::ffi::c_void {
+        match self {
+            None => ptr::null(),
+            Some(v) => v.as_ptr() as *mut u8 as *const core::ffi::c_void
+        }
+    }
+
+    fn db_data_len(&self) -> usize {
+        match self {
+            None => 0,
+            Some(v) => v.len()
+        }
+    }
+
+    fn from_boxed_db_data(src: &Box<dyn DbData>) -> Self where Self: Sized {
+        if src.db_data_ptr().is_null() {
+            None
+        } else {
+            Some(Vec::<u8>::from_boxed_db_data(src))
+        }
     }
 }

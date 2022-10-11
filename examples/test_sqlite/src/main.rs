@@ -3,12 +3,12 @@ use yoshino_sqlite::{SQLiteAdaptor};
 use yoshino_user::{User, UserCredential};
 use bytes::Bytes;
 
-#[derive(Schema)]
+#[derive(Schema, Debug)]
 struct Counter {
     pub name: String,
     pub stock: Option<i64>,
     pub score: f64,
-    pub bb: Vec<u8>
+    pub bb: Option<Vec<u8>>
 }
 
 fn main() {
@@ -35,16 +35,16 @@ fn main() {
     }
 
     adaptor.create_table_for_schema::<Counter>().unwrap();
-    let p1 = Counter {name:"milk".to_string(), stock: Some(20), score: 1.02, bb: vec![1u8, 2u8, 4u8, 9u8]};
-    let p2 = Counter{name:"cream".to_string(), stock: None, score: 2.01, bb: vec![2u8, 0u8]};
-    let p3 = Counter{name:"apple".to_string(), stock: Some(30), score: 3.11, bb: vec![0u8, 9u8, 99u8, 1u8]};
+    let p1 = Counter {name:"milk".to_string(), stock: Some(20), score: 1.02, bb: Some(vec![1u8, 2u8, 4u8, 9u8])};
+    let p2 = Counter{name:"cream".to_string(), stock: None, score: 2.01, bb: None};
+    let p3 = Counter{name:"apple".to_string(), stock: Some(30), score: 3.11, bb: Some(vec![0u8, 9u8, 99u8, 1u8])};
     adaptor.insert_record(p1).unwrap();
     adaptor.insert_record(p2).unwrap();
     adaptor.insert_record(p3).unwrap();
     let cond = Cond::is_null("stock") | Cond::integer_equal_to("stock", 20);
     let query_result = adaptor.query_with_cond::<Counter>(cond).unwrap();
     for p in query_result {
-        println!("Product: {}, stock = {:?} score={:?}", p.name, p.stock, p.score);
+        println!("{:?}", p);
     }
 
 

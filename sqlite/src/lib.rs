@@ -55,7 +55,8 @@ impl SQLiteAdaptor {
                 DbDataType::NullableText => "TEXT",
                 DbDataType::Float => "REAL",
                 DbDataType::RowID => "INTEGER PRIMARY KEY",
-                DbDataType::Binary => "BLOB NOT NULL"
+                DbDataType::Binary => "BLOB NOT NULL",
+                DbDataType::NullableBinary => "BLOB"
             }
         }
         s = s + ");";
@@ -192,7 +193,7 @@ impl SQLiteAdaptor {
                         let data_len = db_data_box.db_data_len();
                         libsqlite3_sys::sqlite3_bind_text(stmt, i, data_ptr, data_len as i32, libsqlite3_sys::SQLITE_TRANSIENT());
                     }
-                    yoshino_core::db::DbDataType::Binary => {
+                    yoshino_core::db::DbDataType::Binary | yoshino_core::db::DbDataType::NullableBinary => {
                         let data_ptr = db_data_box.db_data_ptr();
                         let data_len = db_data_box.db_data_len();
                         libsqlite3_sys::sqlite3_bind_blob(stmt, i, data_ptr, data_len as i32, libsqlite3_sys::SQLITE_TRANSIENT());
@@ -261,7 +262,7 @@ impl<T: Schema> Iterator for SQLiteRowIterator<T> {
                             let v = unsafe { libsqlite3_sys::sqlite3_column_int64(self.stmt, i as i32) as i64};
                             values.push(Box::new(yoshino_core::RowID::ID(v)))
                         }
-                        DbDataType::NullableText| DbDataType::Text => {
+                        DbDataType::Text => {
                             let v = unsafe { 
                                 let str_ptr = libsqlite3_sys::sqlite3_column_text(self.stmt, i as i32) as *const c_char;
                                 let str_len = libsqlite3_sys::sqlite3_column_bytes(self.stmt, i as i32) as usize;
@@ -271,6 +272,23 @@ impl<T: Schema> Iterator for SQLiteRowIterator<T> {
                                     buffer.push(d);
                                 }
                                 String::from_utf8(buffer).unwrap()
+                            };
+                            values.push(Box::new(v));
+                        }
+                        DbDataType::NullableText => {
+                            let v = unsafe { 
+                                let str_ptr = libsqlite3_sys::sqlite3_column_text(self.stmt, i as i32) as *const c_char;
+                                let str_len = libsqlite3_sys::sqlite3_column_bytes(self.stmt, i as i32) as usize;
+                                if str_ptr.is_null() {
+                                    None
+                                } else {
+                                    let mut buffer = Vec::<u8>::with_capacity(str_len);
+                                    for i in 0..str_len {
+                                    let d = *(str_ptr.offset(i as isize)) as u8;
+                                        buffer.push(d);
+                                    }
+                                    Some(String::from_utf8(buffer).unwrap())
+                                }
                             };
                             values.push(Box::new(v));
                         }
@@ -287,6 +305,24 @@ impl<T: Schema> Iterator for SQLiteRowIterator<T> {
                             };
                             values.push(Box::new(v));
                         }
+                        DbDataType::NullableBinary => {
+                            let v = unsafe {
+                                let ptr = libsqlite3_sys::sqlite3_column_blob(self.stmt, i as i32) as *const u8;
+                                let len = libsqlite3_sys::sqlite3_column_bytes(self.stmt, i as i32) as usize; 
+                                if ptr.is_null() {
+                                    None
+                                }else {
+                                    let mut buffer = Vec::<u8>::new();
+                                    for i in 0..len {
+                                        let d = *(ptr.offset(i as isize));
+                                        buffer.push(d);
+                                    }
+                                    Some(buffer)
+                                }
+                            };
+                            values.push(Box::new(v));
+                        }
+
                     };
                 }
                 let d = T::create_with_values(values);

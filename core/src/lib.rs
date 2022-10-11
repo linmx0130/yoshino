@@ -7,5 +7,5 @@ pub mod types;
 pub mod db;
 pub mod query_cond;
 pub use types::Schema;
-pub use types::{IntegerField, TextField, NullableTextField, NullableIntegerField, RowID, FloatField, BinaryField};
+pub use types::{IntegerField, TextField, NullableTextField, NullableIntegerField, RowID, FloatField, BinaryField, NullableBinaryField};
 pub use query_cond::Cond;

@@ -89,6 +89,18 @@ pub trait BinaryField: Sized {
     }
 }
 
+/// A nullable binary large object field for storing raw data.
+pub trait NullableBinaryField: Sized {
+    /// Create an instance from a boxed DbData trait object.
+    fn from_db_data(data: &Box<dyn DbData>) -> Self;
+    /// Create the Vec<u8> to be used by the Yoshino.
+    fn to_db_data(&self)-> Option<Vec<u8>>;
+    /// The `DbDataType` of this field. For all `NullableBinaryField` objects, it's `DbDataType::NullableBinary`.
+    fn db_field_type() -> DbDataType {
+        DbDataType::NullableBinary
+    }
+}
+
 impl TextField for String {
     fn from_db_data(data: &Box<dyn DbData>) -> String {
         <String as DbData>::from_boxed_db_data(data)
@@ -142,6 +154,15 @@ impl BinaryField for Vec<u8> {
         <Vec<u8> as DbData>::from_boxed_db_data(data)
     }
     fn to_db_data(&self)-> Vec<u8> {
+        self.clone()
+    }
+}
+
+impl NullableBinaryField for Option<Vec<u8>> {
+    fn from_db_data(data: &Box<dyn DbData>) -> Self {
+        <Option<Vec<u8>> as DbData>::from_boxed_db_data(data)
+    }
+    fn to_db_data(&self)-> Option<Vec<u8>> {
         self.clone()
     }
 }
