@@ -8,6 +8,7 @@ use crate::query_cond::Cond;
 pub struct DbError(pub String);
 
 /// Query result from the data base. It's a wrapper of DB result iterator.
+/// It will be replaced by GAT when GAT is availble in the stable compiler.
 pub struct DbQueryResult<T:Schema> {
     pub data_iter: Box<dyn Iterator<Item=T>>
 }
@@ -49,15 +50,17 @@ pub enum DbDataType {
     RowID 
 }
 
-/// The mark trait to indicate that this type can be directly obtained from data base.
+/// The mark trait to indicate that this type can be directly obtained from / sent to the databases.
 pub trait DbData {
-    /// data type in `DbDataType`
+    /// Data type in `DbDataType`
     fn db_data_type(&self) -> DbDataType;
-    /// pointer to the data
+    /// A pointer to the data. The data should be raw data in contiguous memory.
+    /// For null values, it should return a null pointer. 
     fn db_data_ptr(&self) -> *const core::ffi::c_void;
-    /// data length in bytes
+    /// Data length in bytes.
     fn db_data_len(&self) -> usize;
-    // restore data from a boxed db data object
+    /// To restore data from a boxed db data object. 
+    /// A copy of the value should be created as this method only takes a reference as the parameter.
     fn from_boxed_db_data(src: &Box<dyn DbData>) -> Self where Self: Sized;
 }
 
