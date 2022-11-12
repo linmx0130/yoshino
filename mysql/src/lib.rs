@@ -318,7 +318,7 @@ impl DbAdaptor for MySQLAdaptor {
     fn query_with_cond<T: yoshino_core::types::Schema>(
         &mut self,
         cond: yoshino_core::Cond,
-    ) -> Result<yoshino_core::db::DbQueryResult<T>, yoshino_core::db::DbError> {
+    ) -> Result<MySQLResultIterator<T>, yoshino_core::db::DbError> {
         let (cond_clause, cond_values) = MySQLAdaptor::get_cond_expression_code_and_data(cond);
         let query_stmt = format!(
             "{} WHERE {};",
@@ -346,10 +346,7 @@ impl DbAdaptor for MySQLAdaptor {
                 mysqlclient_sys::mysql_stmt_bind_param(stmt, bind_array)
             );
             db_stmt_try!(stmt, mysqlclient_sys::mysql_stmt_execute(stmt));
-            let internal_iterator = MySQLResultIterator::new(stmt)?;
-            Ok(yoshino_core::db::DbQueryResult {
-                data_iter: Box::new(internal_iterator),
-            })
+            MySQLResultIterator::new(stmt)
         }
     }
 

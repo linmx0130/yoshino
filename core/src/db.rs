@@ -1,23 +1,11 @@
 //! Database related core stuff
 use crate::query_cond::Cond;
-use crate::{RowID, Schema};
+use crate::{RowID};
 use std::ptr;
 
 /// Database error
 #[derive(Debug, Clone)]
 pub struct DbError(pub String);
-
-/// Query result from the data base. It's a wrapper of DB result iterator.
-pub struct DbQueryResult<T: Schema> {
-    pub data_iter: Box<dyn Iterator<Item = T>>,
-}
-
-impl<T: Schema> Iterator for DbQueryResult<T> {
-    type Item = T;
-    fn next(&mut self) -> Option<Self::Item> {
-        self.data_iter.next()
-    }
-}
 
 /// Yoshino database adaptor trait.
 ///
@@ -34,7 +22,7 @@ pub trait DbAdaptor {
     fn query_with_cond<T: crate::types::Schema>(
         &mut self,
         cond: Cond,
-    ) -> Result<DbQueryResult<T>, DbError>;
+    ) -> Result<Self::Iterator<T>, DbError>;
     /// Delete records of the schema that matches the condition.
     fn delete_with_cond<T: crate::types::Schema>(&mut self, cond: Cond) -> Result<(), DbError>;
     /// Update records of the schema that matches the condition.

@@ -32,7 +32,7 @@
 //! For more usages, please refer to this document and the examples.
 
 pub use yoshino_core;
-pub use yoshino_core::db::{DbAdaptor, DbData, DbDataType, DbError, DbQueryResult};
+pub use yoshino_core::db::{DbAdaptor, DbData, DbDataType, DbError};
 pub use yoshino_core::Cond;
 pub use yoshino_core::Schema;
 pub use yoshino_core::{RowID, NullableIntegerField, NullableTextField, IntegerField, TextField, FloatField, BinaryField, NullableBinaryField};

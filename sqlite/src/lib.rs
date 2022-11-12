@@ -5,7 +5,7 @@ use std::marker::PhantomData;
 use std::ops::Drop;
 use std::os::raw::{c_char, c_int};
 use std::ptr;
-use yoshino_core::db::{DbAdaptor, DbData, DbDataType, DbError, DbQueryResult};
+use yoshino_core::db::{DbAdaptor, DbData, DbDataType, DbError};
 use yoshino_core::Schema;
 
 pub struct SQLiteAdaptor {
@@ -418,7 +418,7 @@ impl DbAdaptor for SQLiteAdaptor {
     fn query_with_cond<T: Schema>(
         &mut self,
         cond: yoshino_core::query_cond::Cond,
-    ) -> Result<DbQueryResult<T>, DbError> {
+    ) -> Result<SQLiteRowIterator<T>, DbError> {
         let schema_name = T::get_schema_name();
         let fields = T::get_fields();
         let query_stmt = SQLiteAdaptor::get_query_clause(&schema_name, &fields);
@@ -437,11 +437,10 @@ impl DbAdaptor for SQLiteAdaptor {
             ));
             SQLiteAdaptor::bind_params_to_stmt(stmt, &cond_params);
         }
-        let iter: Box<SQLiteRowIterator<T>> = Box::new(SQLiteRowIterator {
+        Ok(SQLiteRowIterator {
             stmt,
             phantom: PhantomData,
-        });
-        Ok(DbQueryResult { data_iter: iter })
+        })
     }
 
     fn delete_with_cond<T: Schema>(&mut self, cond: yoshino_core::Cond) -> Result<(), DbError> {
