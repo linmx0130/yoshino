@@ -1,12 +1,11 @@
 /**
  * User related data model.
  */
-
 mod authentication;
-pub use authentication::UserCredentialHashType;
 pub use authentication::UserCredential;
+pub use authentication::UserCredentialHashType;
 use bytes::Bytes;
-use yoshino_core::{TextField, RowID};
+use yoshino_core::{RowID, TextField};
 use yoshino_derive::Schema;
 
 /// The user representation for login purpose
@@ -19,11 +18,12 @@ pub struct User {
 
 impl User {
     pub fn new(user_name: String, password: String, hash_type: UserCredentialHashType) -> User {
-        let login_credential = authentication::UserCredential::new(Bytes::from(password.to_owned()), hash_type);
+        let login_credential =
+            authentication::UserCredential::new(Bytes::from(password.to_owned()), hash_type);
         User {
             id: RowID::NEW,
             user_name,
-            login_credential
+            login_credential,
         }
     }
 }
