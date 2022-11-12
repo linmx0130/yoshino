@@ -1,7 +1,7 @@
-use yoshino_prelude::*;
-use yoshino_sqlite::{SQLiteAdaptor};
-use yoshino_user::{User, UserCredential};
 use bytes::Bytes;
+use yoshino_prelude::*;
+use yoshino_sqlite::SQLiteAdaptor;
+use yoshino_user::{User, UserCredential};
 
 #[derive(Schema, Debug)]
 struct Counter {
@@ -15,19 +15,22 @@ fn main() {
     let mut adaptor = SQLiteAdaptor::open("db1").unwrap();
     adaptor.create_table_for_schema::<User>().unwrap();
     let new_user = User::new(
-        "admin".to_string(), 
-        "this_is_admin".to_string(), 
-        yoshino_user::UserCredentialHashType::Sha256WithSalt(Bytes::from("salt")));
+        "admin".to_string(),
+        "this_is_admin".to_string(),
+        yoshino_user::UserCredentialHashType::Sha256WithSalt(Bytes::from("salt")),
+    );
     adaptor.insert_record(new_user).unwrap();
     let query_result = adaptor.query_all::<User>().unwrap();
     for user in query_result {
         println!("user: {:?}", user);
         let mut new_user = user.clone();
         new_user.login_credential = UserCredential::new(
-            Bytes::from("new_password"), 
-            yoshino_user::UserCredentialHashType::Sha256WithSalt(Bytes::from("salt2"))
+            Bytes::from("new_password"),
+            yoshino_user::UserCredentialHashType::Sha256WithSalt(Bytes::from("salt2")),
         );
-        adaptor.update_with_cond(Cond::is_row_id_equal_to(&user).unwrap(), new_user).unwrap();
+        adaptor
+            .update_with_cond(Cond::is_row_id_equal_to(&user).unwrap(), new_user)
+            .unwrap();
     }
     println!(">> New users");
     for user in adaptor.query_all::<User>().unwrap() {
@@ -46,6 +49,4 @@ fn main() {
     for p in query_result {
         println!("{:?}", p);
     }
-
-
 }
